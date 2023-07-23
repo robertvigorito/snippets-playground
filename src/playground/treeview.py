@@ -4,6 +4,72 @@ import sys
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
+class SearchBarLineEditold(QtWidgets.QLineEdit):
+    
+    def __init__(self) -> None:
+        super().__init__()
+        
+        # Add a search icon to the search bar
+        search = QtGui.QIcon()
+        search.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/search_icon.gif")))
+        search_action = self.addAction(search, QtWidgets.QLineEdit.LeadingPosition)
+        
+        # Turn off the search action when the text is added with a smooth transition
+        # Transition the search icon to a close icon
+        
+        self.textChanged.connect(lambda text: search_action.setVisible(not bool(text)))
+        self.setClearButtonEnabled(True)
+        
+        # Add a close icon to the search bar
+        close = QtGui.QIcon()
+        close.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/close_icon.png")))
+        # close_action = self.addAction(close, QtWidgets.QLineEdit.TrailingPosition)
+
+        # Clear text if the mouse is clicked on the icon
+            
+class SearchBarLineEdit(QtWidgets.QLineEdit):
+    
+    def __init__(self) -> None:
+        super().__init__()
+        
+        # Add a search icon to the search bar
+        search = QtGui.QIcon()
+        search.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/search_icon.gif")))
+        search_action = self.addAction(search, self.TrailingPosition)
+        
+        # Turn off the search action when the text is added with a smooth transition
+        # Transition the search icon to a close icon
+        self.animation = QtCore.QPropertyAnimation(search_action, b"opacity")
+        self.animation.setDuration(200)
+        self.animation.setStartValue(1.0)
+        self.animation.setEndValue(0.0)
+        self.animation.finished.connect(lambda: search_action.setVisible(False))
+        self.textChanged.connect(lambda text: self.animate_search_icon(search_action, bool(text)))
+        
+        
+        # enable the clear button when the animation finishes
+        self.animation.finished.connect(lambda: self.setClearButtonEnabled(not bool(self.text())))
+        
+        # Add a close icon to the search bar
+        close = QtGui.QIcon()
+        close.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/close_icon.png")))
+        # close_action = self.addAction(close, QtWidgets.QLineEdit.TrailingPosition)
+
+        # Clear text if the mouse is clicked on the icon
+        
+    def 
+        
+    def animate_search_icon(self, search_action, visible):
+        if visible:
+            search_action.setVisible(True)
+            self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
+            self.animation.start()
+        else:
+            self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
+            self.animation.start()
+
+
+
 class ContextView(QtWidgets.QDialog):
     def __init__(self) -> None:
         super().__init__()
@@ -16,6 +82,13 @@ class ContextView(QtWidgets.QDialog):
         
         # Expand the child if you click on the parent
         self.view.setExpandsOnDoubleClick(True)
+        
+        # Enable the windows always on top flag
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+        
+        # Always on the top
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+        
         
         # Create random items and add them to the trew view
         for i in range(5):
@@ -49,7 +122,7 @@ class ContextView(QtWidgets.QDialog):
             parent_item.setDropEnabled(False)
             
             # Rotate the icon when the item is expanded
-            self.view.expanded.connect(lambda index: self.rotate_icon(index))
+            # self.view.expanded.connect(lambda index: self.rotate_icon(index))
             
             for child in range(self.model.item(parent).rowCount()):
                 # Add arrow to the child items
@@ -64,7 +137,7 @@ class ContextView(QtWidgets.QDialog):
                 self.model.item(parent).child(child).setEditable(False)
         
         # Add a search bar at the bottom of the view to filter the items
-        self.search_bar = QtWidgets.QLineEdit()
+        self.search_bar = SearchBarLineEdit()
         # Connect the text changed signal to the filter function
         self.search_bar.textChanged.connect(self.filter)
         
