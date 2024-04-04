@@ -1,0 +1,77 @@
+// An attempt at finding the min colors of the image and displaying them.
+
+kernel K_MinColor : ImageComputationKernel<ePixelWise>
+{
+  Image<eRead, eAccessRandom, eEdgeClamped> img; // The input arrow
+  Image<eWrite> dst;
+
+param:
+  float4 lift; // This parameter is made available to the user.
+  float4 gain; // This parameter is made available to the user.
+
+  void define()
+  {
+    defineParam(lift, "lift", float4(0.0f, 0.0f, 0.0f, 0.0f));
+    defineParam(gain, "gain", float4(1.0f, 1.0f, 1.0f, 1.0f));
+  }
+  // The init() function is run before any calls to process().
+  void init()
+  {
+  }
+  void process(int2 pos)
+  {
+    // loop through the image and find the min and max colors
+    float4 min_value = 1000000000.0f;
+    float4 max_value = -1000000000.0f;
+
+    // Return the nothing if no image is loaded
+    if (img.bounds.x1 == img.bounds.x2 || img.bounds.y1 == img.bounds.y2)
+    {
+      dst() = float4(0.0f, 0.0f, 0.0f, 0.0f);
+      return;
+    }
+
+    for (int x = img.bounds.x1; x < img.bounds.x2; x++)
+    {
+      for (int y = img.bounds.y1; y < img.bounds.y2; y++)
+      {
+        // Find the min color if the pos.x is 0
+        if (pos.x == 0)
+        {
+          for (int channel = 0; channel < 3; channel++)
+          {
+            if (img(x, y, channel) < min_value[channel])
+            {
+                min_value[channel] = img(x, y, channel);
+            }
+          }
+        }
+        else if (pos.x == 1)
+        {
+          for (int channel = 0; channel < 3; channel++)
+          {
+            if (img(x, y, channel) > max_value[channel])
+            {
+              max_value[channel] = img(x, y, channel);
+            }
+          }
+        }
+      }
+    }
+    // Lift the min value
+    min_value += lift;
+    // Grin the max value
+    max_value *= gain;
+    // Keep the same alpha
+    min_value[3] = img(pos.x, pos.y, 3);
+    max_value[3] = img(pos.x, pos.y, 3);
+    if (pos.x == 0)
+    {
+      dst() = min_value;
+    }
+    else if (pos.x == 1)
+    {
+      dst() = max_value;
+    }
+  }
+};

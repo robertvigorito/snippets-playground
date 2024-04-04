@@ -10,5 +10,4 @@ from {module} import {class_name}
 kwargs = {kwargs}
 
 {class_name}(**kwargs)()
-{class_name}.teardown()
 """

@@ -1,82 +1,109 @@
 """Play around with creating a widget that displays a tree of items.
+
+TODO: 
 """
+from functools import partial
 import sys
+from typing import Optional
 from PySide2 import QtCore, QtWidgets, QtGui
-
-
-class SearchBarLineEditold(QtWidgets.QLineEdit):
-    
-    def __init__(self) -> None:
-        super().__init__()
-        
-        # Add a search icon to the search bar
-        search = QtGui.QIcon()
-        search.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/search_icon.gif")))
-        search_action = self.addAction(search, QtWidgets.QLineEdit.LeadingPosition)
-        
-        # Turn off the search action when the text is added with a smooth transition
-        # Transition the search icon to a close icon
-        
-        self.textChanged.connect(lambda text: search_action.setVisible(not bool(text)))
-        self.setClearButtonEnabled(True)
-        
-        # Add a close icon to the search bar
-        close = QtGui.QIcon()
-        close.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/close_icon.png")))
-        # close_action = self.addAction(close, QtWidgets.QLineEdit.TrailingPosition)
-
-        # Clear text if the mouse is clicked on the icon
+import PySide2.QtWidgets
             
 class SearchBarLineEdit(QtWidgets.QLineEdit):
+    """A line edit that has a search icon and a clear button.
+    """
     
     def __init__(self) -> None:
+        """Initialize the line edit with a search icon and a clear button."""
         super().__init__()
         
         # Add a search icon to the search bar
         search = QtGui.QIcon()
-        search.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/search_icon.gif")))
-        search_action = self.addAction(search, self.TrailingPosition)
-        
-        # Turn off the search action when the text is added with a smooth transition
-        # Transition the search icon to a close icon
-        self.animation = QtCore.QPropertyAnimation(search_action, b"opacity")
-        self.animation.setDuration(200)
-        self.animation.setStartValue(1.0)
-        self.animation.setEndValue(0.0)
-        self.animation.finished.connect(lambda: search_action.setVisible(False))
-        self.textChanged.connect(lambda text: self.animate_search_icon(search_action, bool(text)))
-        
-        
-        # enable the clear button when the animation finishes
-        self.animation.finished.connect(lambda: self.setClearButtonEnabled(not bool(self.text())))
-        
-        # Add a close icon to the search bar
-        close = QtGui.QIcon()
-        close.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("/home/rvigorito/dev/playground/src/playground/close_icon.png")))
-        # close_action = self.addAction(close, QtWidgets.QLineEdit.TrailingPosition)
+        search.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage("snippets-playground/src/playground//search_icon.gif")))
+        self.search_action = self.addAction(search, self.TrailingPosition)
 
-        # Clear text if the mouse is clicked on the icon
+
+        self.textChanged.connect(partial(self.transition_search_icon))
+
+        # Add hidden text to the search bar
+        self.setPlaceholderText("Search, do it!")
         
-    def 
+    def transition_search_icon(self, text):
+        """Change the search icon to the clear icon if the text is not empty.
         
-    def animate_search_icon(self, search_action, visible):
-        if visible:
-            search_action.setVisible(True)
-            self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
-            self.animation.start()
+        Args:
+            text (str): The text in the search bar.
+        Returns:
+            bool: True if the search icon was changed, False otherwise.
+        """
+        self.search_action = self.search_action or QtWidgets.QAction(self)
+        
+        if text:
+            self.search_action.setVisible(False)
+            self.setClearButtonEnabled(True)
+
         else:
-            self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
-            self.animation.start()
+            self.search_action.setIcon(QtGui.QIcon(QtGui.QPixmap.fromImage(QtGui.QImage("snippets-playground/src/playground/search_icon.gif"))))
+            self.setClearButtonEnabled(False)
+            self.search_action.setVisible(True)
+
+        return True
+    
+
+class CollapsibleTreeView(QtWidgets.QTreeView):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
 
 
+        # Add buttons to the view
 
-class ContextView(QtWidgets.QDialog):
+        item = QtWidgets.QAction("Item")
+
+        
+        self.addAction(item,)
+
+        # Work on the header and add multiple buttons to the trailing position
+        # self.header = self.header()
+        # self.header.setSectionsClickable(True)
+        # self.header.setSortIndicatorShown(True)
+        # self.header.setStretchLastSection(True)
+        # self.header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        # self.header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        # self.header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        
+        # # Add title to the header of the tree view
+        # self.header.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # self.header.customContextMenuRequested.connect(self.show_header_menu)
+
+
+class ContextView(QtWidgets.QWidget):
     def __init__(self) -> None:
         super().__init__()
         
-        self.view = QtWidgets.QTreeView()
+        self.view = CollapsibleTreeView()
+
+        # Add a toolbar to the tree view
+        self.toolbar = QtWidgets.QToolBar()
+        self.toolbar.addSeparator()
+        self.toolbar.addAction("Item")
+        self.toolbar.addAction("Item")
+        self.toolbar.addAction("Item")
+        # Add it to the tree view
+        # self.view.addToolBar(self.toolbar)
+
+        
+
         self.model = QtGui.QStandardItemModel()
         self.view.setModel(self.model)
+        self.search_bar = SearchBarLineEdit()
+        # Connect the text changed signal to the filter function
+        self.search_bar.textChanged.connect(self.filter)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self.toolbar)
+        self.layout.addWidget(self.view)
+        self.layout.addWidget(self.search_bar)
+        self.setLayout(self.layout)
+
+        return
         # Add mulitple selection mode to the tree view
         self.view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         
@@ -88,7 +115,20 @@ class ContextView(QtWidgets.QDialog):
         
         # Always on the top
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
-        
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)  # Add the flag
+
+        # Have the window open in the center of the screen
+        screen_geometry = QtWidgets.QApplication.desktop().screenGeometry()
+
+        # Get the center point of the screen
+        center_point = screen_geometry.center()
+
+        # Get the center point of the dialog
+        dialog_rect = self.frameGeometry()
+        dialog_rect.moveCenter(center_point)
+
+        # Move the dialog to the center of the screen
+        self.move(dialog_rect.topLeft())        
         
         # Create random items and add them to the trew view
         for i in range(5):
@@ -112,7 +152,7 @@ class ContextView(QtWidgets.QDialog):
         for parent in range(self.model.rowCount()):
             
             parent_item = self.model.item(parent)
-            parent_icon = QtGui.QIcon(QtGui.QPixmap.fromImage(QtGui.QImage("playground/src/playground/sequence_icon.png")))
+            parent_icon = QtGui.QIcon(QtGui.QPixmap.fromImage(QtGui.QImage("snippets-playground/src/playground/sequence_icon.png")))
             parent_item.setIcon(parent_icon)
             
             # Remove the arrow from the parent items
@@ -128,7 +168,7 @@ class ContextView(QtWidgets.QDialog):
                 # Add arrow to the child items
                 self.model.item(parent).child(child).setDropEnabled(False)
                 # Make the icon smaller
-                icon = QtGui.QIcon(QtGui.QPixmap.fromImage(QtGui.QImage("playground/src/playground/shot_icon.png")))
+                icon = QtGui.QIcon(QtGui.QPixmap.fromImage(QtGui.QImage("snippets-playground/src/playground/shot_icon.png")))
                 icon.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(":/arrow.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
                 # Set the size of the icon
                 # Change the icon of the child items to be smaller

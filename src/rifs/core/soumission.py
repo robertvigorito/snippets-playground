@@ -5,7 +5,7 @@ import dataclasses as _dataclasses
 import typing as _typing
 
 # Package imports
-from abstraction import AbstractRif as _AbstractRif
+from rifs.core import AbstractRif as _AbstractRif
 
 
 __all__ = ["insert_job"]
@@ -24,9 +24,28 @@ class DummyJob:
     job_class_type: str = "NukeJob"
     job_name: str = show
     ram: int = 8000
+    depend_on: _typing.List["DummyJob"] = _dataclasses.field(default_factory=list)
+    name: str = "dummy"
+    notes: str = ""
+
+    def submit(self):
+        """Submit the job."""
+        import subprocess as _subprocess  # pylint: disable=import-outside-toplevel
+
+        try:
+            process = _subprocess.Popen(self.command, env=_os.environ, stdout=_subprocess.PIPE, stderr=_subprocess.PIPE)
+        except _subprocess.CalledProcessError as e:
+            print(e)
+
+        # Print the output and stderr
+        output, error = process.communicate()
+        if process.returncode == 0:
+            print(output.decode("utf-8"))
+        else:
+            print(error.decode("utf-8"))
 
 
-def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> bool:
+def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> "DummyJob":
     """Insert a job into the database.
 
     Args:
@@ -43,10 +62,10 @@ def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> bool:
         show: The show name.
 
     Returns:
-        bool: True if the operation was successful. False otherwise.
+        DummyJob: The job object.
     """
     rif_duck_job = DummyJob()
-    rif_duck_job.command = ["dd-python", script]
+    rif_duck_job.command = ["python", script]
     rif_duck_job.env["outputImage"] = kwargs.get("outputImage", "")
 
     for key, value in kwargs.items():
@@ -57,4 +76,4 @@ def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> bool:
         if hasattr(operation, rif_field.name) and not rif_field.metadata.get("exempt"):
             setattr(rif_duck_job, rif_field.name, getattr(operation, rif_field.name))
 
-    return True
+    return rif_duck_job

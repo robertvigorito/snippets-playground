@@ -1,39 +1,68 @@
 """By passing the rif objects to the transmit module, the objects are converted into executable python 
 files for farm submission.
 """
-
 import os as _os
 import dataclasses as _dataclasses
 import typing as _typing
 import black as _black
 
+# Package imports
+from rifs.core import (
+    AbstractRif as _AbstractRif,
+    insert_job as _insert_job,
+    constants as _constants,
+)
 
-from abstraction import AbstractRif as _AbstractRif
-from soumission import insert_job as _insert_job
-from internal.constants import RIF_SCRIPT_TEMPLATE as _RIF_SCRIPT_TEMPLATE
+from rifs.core.resolver import Resolver as _Resolver
+
+__all__ = ["Constructor"]
 
 
-@_dataclasses.dataclass(eq=False, order=False, frozen=True, repr=False, unsafe_hash=True)
-class ReconstructDuck:
+@_dataclasses.dataclass(eq=True, order=True, frozen=True)
+class Constructor:
     """Turn a duck object into a executable python file for farm submission."""
 
     operations: _typing.List["_AbstractRif"]
 
-    def emit(self) -> bool:
-        """Emit the python code for the duck object."""
-        return False
+    def submit(self) -> _typing.List[_typing.Any]:
+        """Emit the python code for the duck object.
 
-    def __call__(self) -> _typing.List[_typing.Any]:
+        Returns:
+            _typing.List[_typing.Any]: The list of results from the job submission.
+        """
+        results = []
+        pool: _typing.List[str] = []
+
+        for grouping in self.build().resolve():
+            print(grouping.job.command)
+            # result = grouping.job.submit()
+            result = "Job submitted"
+            # Add to the pool for dependency resolution
+            pool.append(grouping.job.name)
+
+            from pprint import pprint as pp
+
+            pp(pool)
+            # print(grouping.job.depend_on)
+            for depend_on in grouping.job.depend_on:
+                if depend_on.name in pool:
+                    print(f"{grouping.name()} - Dependency resolved")
+
+            results.append(result)
+
+        return results
+
+    def build(self) -> "_Resolver":
         """Turn the duck object into a executable python file for farm submission.
 
         Returns:
-            _typing.List[_typing.Any]: The list of constructed duck objects.
+            _Resolver: The list of constructed duck objects.
         """
-        constructed_ducks: _typing.List[_typing.Any] = []
+        rifs_resolver = _Resolver()
 
         for operation in self.operations:
             # Get the module name
-            operation_module_name = operation.__module__
+            operation_module_name = operation.namespace or operation.__module__
             # Get the class name
             operation_class_name = type(operation).__name__
             # Get the kwargs
@@ -43,7 +72,7 @@ class ReconstructDuck:
                     operation_kwargs[field.name] = getattr(operation, field.name)
 
             # Build the script from the template and save it in the temp directory
-            operation_duck_script = _RIF_SCRIPT_TEMPLATE.format(
+            operation_duck_script = _constants.RIF_SCRIPT_TEMPLATE.format(
                 module=operation_module_name, class_name=operation_class_name, kwargs=operation_kwargs
             )
             # Format the script with black - Make it pretty
@@ -56,6 +85,6 @@ class ReconstructDuck:
 
             # Convert the object to job
             rif_soumission = _insert_job(operation, temp_script_path)
-            constructed_ducks.append(rif_soumission)
+            rifs_resolver.inject(operation, rif_soumission)
 
-        return constructed_ducks
+        return rifs_resolver
