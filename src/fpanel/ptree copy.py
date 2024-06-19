@@ -1,3 +1,4 @@
+import random
 from typing import Optional
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -35,60 +36,82 @@ class TreeviewPipeDelegate(QtWidgets.QStyledItemDelegate):
             option.rect.right(),
             option.rect.bottom(),
         )
+        option.rect = QtCore.QRect(left, top, right - left, bottom - top)
         offset_left = left - 10
 
-        if index.parent().isValid() and not has_children and not_last:
+        if index.parent().isValid() and not has_children:
+            if not not_last:
+                bottom -= 10
+                painter.drawLine(offset_left, bottom, offset_left + 10, bottom)
             painter.drawLine(offset_left, top, offset_left, bottom)
 
-        # Draw the horizontal line at the end of the children with no children
-        elif index.parent().isValid() and not not_last and not has_children:
-            painter.drawLine(left - 10, top, left - 10, bottom - 10)
-            painter.drawLine(left - 10, bottom - 10, left, bottom - 10)
+        if has_children:
+            next_item = index.model().index(index.row() + 1, index.column(), index.parent())
+            print("*" * 50)
+            print(index.data())
+            if next_item.data() is None:
+                next_item = index.model().index(next_item.parent().row() + 1, next_item.column(), next_item.parent().parent())
+                print(next_item.data(), "here")
+            print(next_item.data())
 
-        if has_children and not_last:
-            next_item_rect = option.widget.visualRect(model.index(index.row() + 1, index.column(), index.parent()))
             painter.setPen(self.light_orange_pen)
-            painter.drawLine(left - 10, bottom, left - 10, next_item_rect.top())
+            painter.drawLine(offset_left, top, offset_left, bottom)
+
+            # painter.drawLine(left - 10, bottom, left - 10, next_item_rect.top())
 
         return True
 
 
-#
-# Create the application and the model
+class TreeviewPipe(QtWidgets.QTreeView):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        # self.setIndentation(20)
+        # self.setRootIsDecorated(False)
+        self.setAlternatingRowColors(True)
+        self.resize(800, 600)
+        # self.setAllColumnsShowFocus(True)
+
+        model = QtGui.QStandardItemModel()
+        model.setHorizontalHeaderLabels(["Name", "Class", "Basename", "Order", "Frange"])
+
+        self.setModel(model)
+
+        QtWidgets.QShortcut("alt+w", self, self.close)
+
+        for i in range(3):
+            parent = QtGui.QStandardItem(f"Parent {i}")
+
+            for j in range(random.randint(2, 5)):
+                child = QtGui.QStandardItem(f"Child {j}")
+                parent.appendRow(child)
+                for k in range(random.randint(2, 4)):
+                    new_child = QtGui.QStandardItem(f"Child {j}.{k}")
+                    child.appendRow(new_child)
+                    new_child.appendRows([QtGui.QStandardItem(f"{k} column") for k in range(random.randint(2, 7))])
+
+            model.appendRow(parent)
+        # Assign the delegate to the tree view
+        self.setItemDelegate(TreeviewPipeDelegate(self))
+
+        self.expandAll()
+        self.move(3500, 100)
+
+        for column in range(model.columnCount()):
+            self.resizeColumnToContents(column)
+            # Add some padding to the column width
+            self.setColumnWidth(column, self.columnWidth(column) + 50)
+
+        # Increase the font size
+        font = self.font()
+        font.setPointSize(11)
+        self.setFont(font)
+
+
 app = QtWidgets.QApplication([])
 
-# Create the tree view
-tree = QtWidgets.QTreeView()
-model = QtGui.QStandardItemModel()
+TreeView = TreeviewPipe()
+TreeView.show()
 
-# Set the header labels
-model.setHorizontalHeaderLabels(["Tree", "Names"])
-
-# Create the root item
-for i in range(2):
-    parent_item = QtGui.QStandardItem(f"Parent {i}")
-    model.appendRow(parent_item)
-    for j in range(3):
-        child_item = QtGui.QStandardItem(f"Child {j}")
-        parent_item.appendRow(child_item)
-
-    for rand in range(2):
-        child_item = QtGui.QStandardItem(f"Child {i}{rand}")
-        parent_item.appendRow(child_item)
-
-for i in range(2):
-    parent_item = QtGui.QStandardItem(f"No Child 2 {i}")
-    model.appendRow(parent_item)
-
-tree.setModel(model)
-# Set the custom delegate for the tree view
-delegate = TreeviewPipeDelegate(tree)
-tree.setItemDelegate(delegate)
-
-# Resize the columns to fit the content
-tree.resizeColumnToContents(0)
-tree.expandAll()
-tree.resize(800, 600)
-# Show the tree view
-tree.show()
 app.exec_()
