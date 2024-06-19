@@ -25,6 +25,9 @@ class TreeviewPipeDelegate(QtWidgets.QStyledItemDelegate):
             bool: True if the item was painted. Otherwise, False.
         """
         super().paint(painter, option, index)
+
+        painter.save()
+
         has_children = self.parent_view.model().hasChildren(index)
         not_last = index.model().index(index.row() + 1, index.column(), index.parent()).isValid()
 
@@ -45,19 +48,29 @@ class TreeviewPipeDelegate(QtWidgets.QStyledItemDelegate):
                 painter.drawLine(offset_left, bottom, offset_left + 10, bottom)
             painter.drawLine(offset_left, top, offset_left, bottom)
 
-        if has_children:
-            next_item = index.model().index(index.row() + 1, index.column(), index.parent())
-            print("*" * 50)
-            print(index.data())
-            if next_item.data() is None:
-                next_item = index.model().index(next_item.parent().row() + 1, next_item.column(), next_item.parent().parent())
-                print(next_item.data(), "here")
-            print(next_item.data())
+        if has_children and index.parent().isValid() and self.parent_view.isExpanded(index):
 
+            # Get the last child item of all the children
+            original_index = index
+
+            while index.model().hasChildren(index):
+                index = index.child(index.model().rowCount(index) - 1, 0)
+
+            last_child_rect = self.parent_view.visualRect(index)
             painter.setPen(self.light_orange_pen)
-            painter.drawLine(offset_left, top, offset_left, bottom)
 
-            # painter.drawLine(left - 10, bottom, left - 10, next_item_rect.top())
+            if self.parent_view.isExpanded(index.parent()):
+                painter.drawLine(offset_left, bottom, offset_left, last_child_rect.bottom() - 5)
+
+            # Are all the children expanded?
+            children_list = [original_index.child(i, 0) for i in range(original_index.model().rowCount(original_index))]
+
+            if children_list and not self.parent_view.isExpanded(children_list[-1]):
+                last_child_rect = self.parent_view.visualRect(children_list[-1])
+                painter.setPen(self.light_blue_pen)
+                painter.drawLine(offset_left, bottom, offset_left, last_child_rect.bottom())
+
+        painter.restore()
 
         return True
 
@@ -69,7 +82,6 @@ class TreeviewPipe(QtWidgets.QTreeView):
 
         # self.setIndentation(20)
         # self.setRootIsDecorated(False)
-        self.setAlternatingRowColors(True)
         self.resize(800, 600)
         # self.setAllColumnsShowFocus(True)
 
@@ -80,10 +92,10 @@ class TreeviewPipe(QtWidgets.QTreeView):
 
         QtWidgets.QShortcut("alt+w", self, self.close)
 
-        for i in range(3):
+        for i in range(2):
             parent = QtGui.QStandardItem(f"Parent {i}")
 
-            for j in range(random.randint(2, 5)):
+            for j in range(random.randint(1, 3)):
                 child = QtGui.QStandardItem(f"Child {j}")
                 parent.appendRow(child)
                 for k in range(random.randint(2, 4)):
@@ -106,7 +118,8 @@ class TreeviewPipe(QtWidgets.QTreeView):
         # Increase the font size
         font = self.font()
         font.setPointSize(11)
-        self.setFont(font)
+        # self.setFont(font)
+        # self.setAlternatingRowColors(True)
 
 
 app = QtWidgets.QApplication([])
