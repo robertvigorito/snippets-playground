@@ -1,8 +1,12 @@
-import sys
+"""The panel module contains the submission panel for Nuke.
+"""
 import typing as _typing
-from PySide6 import QtCore, QtGui, QtWidgets
-from fpanel import pspecial
+
+from PySide2 import QtGui, QtWidgets
 from collections import OrderedDict as _OrderedDict
+
+from fpanel import pspecial
+from fpanel.ptree import NodeTreeView
 
 
 NUKE_SUBMISSION_PANEL_LAYOUT: _typing.Dict[str, _typing.Any] = _OrderedDict()
@@ -52,7 +56,7 @@ CHECKBOX_ACTIONS = (
 )
 
 
-class NukeSubmission(QtWidgets.QWidget):
+class Panel(QtWidgets.QDialog):
     """This is a simple window that allows the user to submit a Nuke job to a farm.
 
     The user can select the farm, range, farm batch size, max timeout, cores, ram, notes, mail notification,
@@ -61,18 +65,20 @@ class NukeSubmission(QtWidgets.QWidget):
     """
 
     def __init__(self):
-        super().__init__()
+        super().__init__(QtWidgets.QApplication.activeWindow())
         # Default window parameters
-        self.setWindowTitle("Nuke Submission")
-        self.setGeometry(100, 100, 400, 300)
+        self.setWindowTitle("Nuke")
+        # self.setGeometry(100, 100, 400, 300)
         # Important attributes
         self.buttons_layout = pspecial.SubmitLayout()
+        self.node_tree_view = NodeTreeView()
         # Create the layout
         self.build_layout()
         # Add the shortcuts
-        QtGui.QShortcut(QtGui.QKeySequence("alt+w"), self, self.close)
+        QtWidgets.QShortcut(QtGui.QKeySequence("alt+w"), self, self.close)
 
         self.buttons_layout.submit.clicked.connect(self.settings)
+        self.buttons_layout.cancel.clicked.connect(self.close)
 
     def settings(self) -> dict:
         """Return the settings from the submission window.
@@ -83,7 +89,7 @@ class NukeSubmission(QtWidgets.QWidget):
 
         settings = {}
         for key, (widget, _) in NUKE_SUBMISSION_PANEL_LAYOUT.items():
-            widget_instance = self.findChild(widget, name=key.replace("_", "_"))
+            widget_instance = self.findChild(widget, key.replace("_", "_"))
             if hasattr(widget_instance, "results"):
                 settings[key] = widget_instance.results()
 
@@ -102,8 +108,7 @@ class NukeSubmission(QtWidgets.QWidget):
         """
 
         layout = QtWidgets.QFormLayout()
-        layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
+        layout.setContentsMargins(25, 20, 0, 0)
         for key, (widget, kwargs) in NUKE_SUBMISSION_PANEL_LAYOUT.items():
             widget_instance = widget(**kwargs)
             # Set the object name
@@ -115,21 +120,30 @@ class NukeSubmission(QtWidgets.QWidget):
 
         for checkbox_text, checked in CHECKBOX_ACTIONS:
             checkbox = QtWidgets.QCheckBox(checkbox_text)
+            checkbox.setStyleSheet("spacing: 2px; margin: 0px;")
             # Set the object name
             checkbox.setObjectName(checkbox_text.replace(" ", "_"))
             checkbox.setChecked(checked)
             layout.addRow("", checkbox)
 
         # Add another horizontal line
+        vertical_layout = QtWidgets.QVBoxLayout()
         layout.addRow(pspecial.HorizontalLine())
-        layout.addRow(self.buttons_layout)
-        self.setLayout(layout)
+        vertical_layout.addLayout(layout)
+        vertical_layout.addStretch()
+        vertical_layout.addWidget(self.node_tree_view)
+        vertical_layout.addLayout(self.buttons_layout)
+
+        self.setLayout(vertical_layout)
 
         return True
 
+    def show(self) -> None:
+        """Show the submission window."""
 
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    window = NukeSubmission()
-    window.show()
-    sys.exit(app.exec_())
+        # If there is another instance of the submission window, close it and create a new one
+        for widget in QtWidgets.QApplication.allWidgets():
+            if isinstance(widget, QtWidgets.QDialog) and widget.windowTitle() == self.windowTitle():
+                widget.close()
+
+        return super().show()

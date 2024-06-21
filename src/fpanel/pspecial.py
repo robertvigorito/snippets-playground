@@ -4,13 +4,14 @@
 Instead of using the standard widgets, these special widgets are used to
 enhance the appearance of the application and reduce the amount of code.
 """
+import os as _os
 
 from typing import Optional as _Optional
 from typing import Union as _Union
 
-from PySide6 import QtCore as _QtCore
-from PySide6 import QtGui as _QtGui
-from PySide6 import QtWidgets as _QtWidgets
+from PySide2 import QtCore as _QtCore
+from PySide2 import QtGui as _QtGui
+from PySide2 import QtWidgets as _QtWidgets
 
 
 class RightAlignedLabel(_QtWidgets.QLabel):
@@ -18,7 +19,7 @@ class RightAlignedLabel(_QtWidgets.QLabel):
 
     def __init__(self, text: str) -> None:
         super().__init__(text)
-        self.setAlignment(_QtCore.Qt.AlignmentFlag.AlignRight | _QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.setAlignment(_QtCore.Qt.AlignmentFlag.AlignRight | _QtCore.Qt.AlignmentFlag.AlignVCenter)  # type: ignore
 
 
 class HorizontalLine(_QtWidgets.QFrame):
@@ -28,7 +29,6 @@ class HorizontalLine(_QtWidgets.QFrame):
         super().__init__()
         self.setFrameShape(_QtWidgets.QFrame.Shape.HLine)
         self.setFrameShadow(_QtWidgets.QFrame.Shadow.Sunken)
-
 
 
 class ValLineEdit(_QtWidgets.QLineEdit):
@@ -45,7 +45,6 @@ class ValLineEdit(_QtWidgets.QLineEdit):
         self.setClearButtonEnabled(True)
 
         self.results = self.text
-
 
 
 class SubmitLayout(_QtWidgets.QHBoxLayout):
@@ -67,7 +66,7 @@ class ClearMultiLineEdit(_QtWidgets.QPlainTextEdit):
     def __init__(self, placeholder: str = "") -> None:
         super().__init__()
         self.setPlaceholderText(placeholder)
-        self.setFrameStyle(_QtWidgets.QFrame.Shape.Panel | _QtWidgets.QFrame.Shadow.Sunken)
+        self.setFrameStyle(_QtWidgets.QFrame.Shape.Panel | _QtWidgets.QFrame.Shadow.Sunken)  # type: ignore
         self.setVerticalScrollBarPolicy(_QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setMaximumHeight(40)
 
@@ -104,7 +103,52 @@ class SimpleQComboBox(_QtWidgets.QComboBox):
             self.setCurrentIndex(default)
         elif isinstance(default, str):
             self.setCurrentText(default)
-        
+
         self.results = self.currentText
 
-            
+
+def icon_path(icon_name: str) -> str:
+    """Return the path to the icon.
+
+    Args:
+        icon_name (str): The name of the icon.
+
+    Returns:
+        str: The path to the icon.
+    """
+    return f"{_os.path.dirname(__file__)}/icons/{icon_name}.png"
+
+
+class TreeToolbar(_QtWidgets.QVBoxLayout):
+    """A QLayout for the tree toolbar."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setAlignment(_QtCore.Qt.AlignmentFlag.AlignTop | _QtCore.Qt.AlignmentFlag.AlignRight)  # type: ignore
+
+        # Create a mini toolbar, expand all, collapse all, and hide the header, refresh
+        self._toolbar = _QtWidgets.QToolBar()
+        self._toolbar.setIconSize(_QtCore.QSize(16, 16))
+        self._toolbar.setToolButtonStyle(_QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self._toolbar.setStyleSheet("* {margin: 0; padding: 0; } ")
+
+        self.refresh = self._toolbar.addAction(_QtGui.QIcon(icon_path("refresh")), "Refresh")
+        self.expand = self._toolbar.addAction(_QtGui.QIcon(icon_path("expand")), "Expand")
+        self.goto = self._toolbar.addAction(_QtGui.QIcon(icon_path("goto")), "Goto")
+
+        # Set the action connection
+        self.addWidget(self._toolbar)
+        self._toolbar.setVisible(False)
+
+    def toggle(self, on: bool = True) -> bool:
+        """Toggle the visibility of the toolbar.
+
+        Args:
+            on (bool): The visibility of the toolbar. Defaults to True.
+
+        Returns:
+            bool: True if the toolbar is visible, False otherwise.
+        """
+        self._toolbar.setVisible(on or not self._toolbar.isVisible())
+        return self._toolbar.isVisible()
