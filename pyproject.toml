@@ -7,23 +7,38 @@ readme = "README.md"
 
 packages = [
     { include = "rifs", from = "src" },
+    { include = "fpanel", from = "src" },
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.9,<3.11"
 pyyaml = "^6.0.1"
-black = "^24.3.0"
+pyside2 = "^5.15.2.1"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
 tox = "^4.14.2"
 coverage = "^7.4.4"
+black = "^24.3.0"
+mypy = "^1.10.0"
+isort = "^5.13.2"
+pylint = "^3.2.4"
 
 
-[tool.poetry.group.shell.dependencies]
-ipython = "^8.23.0"
+
+[tool.poetry.group.types.dependencies]
+types-nuke = "^13.2.8.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pylint]
+max-line-length=120
+disable="c-extension-no-member"
+
+# Black
+[tool.black]
+line-length = 120

@@ -1,18 +1,16 @@
 """By passing the rif objects to the transmit module, the objects are converted into executable python 
 files for farm submission.
 """
-import os as _os
 import dataclasses as _dataclasses
+import os as _os
 import typing as _typing
+
 import black as _black
 
 # Package imports
-from rifs.core import (
-    AbstractRif as _AbstractRif,
-    insert_job as _insert_job,
-    constants as _constants,
-)
-
+from rifs.core import AbstractRif as _AbstractRif
+from rifs.core import constants as _constants
+from rifs.core import insert_job as _insert_job
 from rifs.core.resolver import Resolver as _Resolver
 
 __all__ = ["Constructor"]
@@ -24,17 +22,20 @@ class Constructor:
 
     operations: _typing.List["_AbstractRif"]
 
-    def submit(self) -> _typing.List[_typing.Any]:
+    def submit(self, **kwargs) -> _typing.List[_typing.Any]:
         """Emit the python code for the duck object.
 
+        Keyword Args:
+            ignore bool: Ignore the dependency resolution.
+        
         Returns:
             _typing.List[_typing.Any]: The list of results from the job submission.
         """
         results = []
         pool: _typing.List[str] = []
 
-        for grouping in self.build().resolve():
-            print(grouping.job.command)
+        for grouping in self.build().resolve(**kwargs):
+            print(grouping.name(), grouping.job.command)
             # result = grouping.job.submit()
             result = "Job submitted"
             # Add to the pool for dependency resolution

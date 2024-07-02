@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
-from rifs.core import AbstractRif
+from typing import Any
+
 from rifs import transmit as _transmit
+from rifs.core import AbstractRif
 
 
 @dataclass
@@ -16,20 +18,6 @@ class DemoRif(AbstractRif):
     def __post_init__(self):
         super().__post_init__()
         self.lala = self.name
-
-
-
-    def post_process(self):
-        print("Post process")
-        return True
-
-    def pre_process(self):
-        print("Pre process")
-        return True
-
-    def teardown(self) -> bool:
-        print("Teardown")
-        return True
 
     def __call__(self, *args, **kwargs) -> None:
         # Print subject
@@ -83,10 +71,11 @@ if __name__ == "__main__":
     )
 
 
-
-    # Dependency injection
+#     # Dependency injection
     demo_rif_three.depend_on = [demo_rif_one, demo_rif_two]
     demo_rif_four.depend_on = [demo_rif_three, demo_rif_five]
 
+
+
     my_constructor = _transmit.Constructor(operations=[demo_rif_three, demo_rif_four, demo_rif_one, demo_rif_two, ])
-    my_constructor.submit()    
+    my_constructor.submit(ignore=True)

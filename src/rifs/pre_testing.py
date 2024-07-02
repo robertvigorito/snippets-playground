@@ -3,8 +3,8 @@
 # How to hash a dictionary
 from dataclasses import dataclass, field
 from typing import Dict, List, Union
-from rifs.core import AbstractRif
 
+from rifs.core import AbstractRif
 
 
 @dataclass

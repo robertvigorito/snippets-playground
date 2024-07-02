@@ -6,8 +6,9 @@ TODO:
 """
 
 import shutil
-import PyOpenColorIO as OCIO
+
 import opencolorio_config_aces
+import PyOpenColorIO as OCIO
 import yaml
 
 generated_aces_config = opencolorio_config_aces.generate_config_aces()

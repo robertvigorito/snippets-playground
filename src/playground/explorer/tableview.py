@@ -2,8 +2,8 @@
 """
 import sys
 from typing import Optional
-from PySide6 import QtCore, QtGui, QtWidgets
 
+from PySide6 import QtCore, QtGui, QtWidgets
 
 
 class AssetTable(QtWidgets.QTableView):

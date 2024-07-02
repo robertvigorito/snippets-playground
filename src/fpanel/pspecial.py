@@ -5,7 +5,6 @@ Instead of using the standard widgets, these special widgets are used to
 enhance the appearance of the application and reduce the amount of code.
 """
 import os as _os
-
 from typing import Optional as _Optional
 from typing import Union as _Union
 
@@ -35,7 +34,11 @@ class ValLineEdit(_QtWidgets.QLineEdit):
     """A QLineEdit with a validator and placeholder text."""
 
     def __init__(
-        self, text: _Optional[str] = None, validator: _Optional[_QtGui.QValidator] = None, placeholder: str = ""
+        self,
+        text: _Optional[str] = None,
+        validator: _Optional[_QtGui.QValidator] = None,
+        placeholder: str = "",
+        **kwargs,
     ) -> None:
         super().__init__(text)
         if isinstance(validator, _QtGui.QValidator):
@@ -43,6 +46,9 @@ class ValLineEdit(_QtWidgets.QLineEdit):
         self.setPlaceholderText(placeholder)
         # Add the clear action to the QLineEdit
         self.setClearButtonEnabled(True)
+        width = kwargs.get("width")
+        if width:
+            self.setMaximumWidth(width)
 
         self.results = self.text
 
@@ -133,15 +139,15 @@ class TreeToolbar(_QtWidgets.QVBoxLayout):
         self._toolbar.setToolButtonStyle(_QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
         self._toolbar.setStyleSheet("* {margin: 0; padding: 0; } ")
 
-        self.refresh = self._toolbar.addAction(_QtGui.QIcon(icon_path("refresh")), "Refresh")
-        self.expand = self._toolbar.addAction(_QtGui.QIcon(icon_path("expand")), "Expand")
-        self.goto = self._toolbar.addAction(_QtGui.QIcon(icon_path("goto")), "Goto")
+        self.refresh = self._toolbar.addAction(_QtGui.QIcon(icon_path("refresh_colored")), "Refresh")
+        self.expand = self._toolbar.addAction(_QtGui.QIcon(icon_path("expand_colored")), "Expand")
+        self.goto = self._toolbar.addAction(_QtGui.QIcon(icon_path("goto_colored")), "Goto")
 
         # Set the action connection
         self.addWidget(self._toolbar)
         self._toolbar.setVisible(False)
 
-    def toggle(self, on: bool = True) -> bool:
+    def toggle(self, on: bool = True) -> bool:  # pylint: disable=invalid-name
         """Toggle the visibility of the toolbar.
 
         Args:

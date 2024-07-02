@@ -1,20 +1,13 @@
 
-# TODO:
-# Would like to remove this code block
-define BROWSER_PYSCRIPT
-import os, webbrowser, sys
 
-from urllib.request import pathname2url
-
-webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
-endef
-export BROWSER_PYSCRIPT
 
 package = alfred
 python_root = ./src/$(package)
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
-.PHONY: clean clean-test clean-pyc clean-build docs help script
+
+lint: LINT_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+.PHONY: clean clean-test clean-pyc clean-build docs help script install poetry-install test test-all coverage
 
 clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
 
@@ -57,11 +50,14 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	$(BROWSER) docs/_build/html/index.html
 
 lint: 
-ifeq ($1 , )
-	pylint `git ls-files *.py` --exit-zero
-else
-	pylint $1 --exit-zero
-endif 
+	pylint $(LINT_ARGS) --exit-zero
+	echo "Running isort"
+	-isort --check-only  $(LINT_ARGS)
+	echo "Running mypy"
+	-mypy $(LINT_ARGS) --check
+	echo "Running black"
+	-black --check $(LINT_ARGS)
+
 
 install: clean
 	pip install --upgrade .
@@ -83,3 +79,6 @@ script:
 
 coverage: ## check code coverage quickly with the default Python
 	wslview ./htmlcov/index.html
+%:
+	@:
+

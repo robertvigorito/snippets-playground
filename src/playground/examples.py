@@ -1,5 +1,7 @@
 import sys
+
 from PySide6 import QtCore, QtGui, QtWidgets
+
 
 class TreeViewExample(QtWidgets.QWidget):
     def __init__(self):

@@ -17,18 +17,24 @@
 #
 """The submission nodes module.
 """
-import os as _os
-from re import A
-import typing as _typing
 import dataclasses as _dataclasses
-
+import os as _os
+import typing as _typing
 
 # DCC imports
-import nuke as _nuke
-
+import nuke as _nuke  # pylint: disable=import-error  # type: ignore
 
 # TODO: Preference?
 EXECUTABLE_NODES_CLASSES = ["Write", "DDWrite2", "WriteGeo", "WriteGeo2", "DeepWrite", "DDDeepWrite2"]
+
+
+def formatted_root_frame_range() -> str:
+    """Get the formatted frame range of the root node.
+
+    Returns:
+        str: The formatted frame range of the root node
+    """
+    return f"{int(_nuke.root().firstFrame())}-{int(_nuke.root().lastFrame())}"
 
 
 def node_frame_range(node: _nuke.Node) -> str:
@@ -43,13 +49,13 @@ def node_frame_range(node: _nuke.Node) -> str:
     first_frame_knob: _nuke.Format_Knob = node.knob("first")  # type: ignore[assignment]
     last_frame_knob: _nuke.Format_Knob = node.knob("last")  # type: ignore[assignment]
     if not (first_frame_knob.notDefault() and last_frame_knob.notDefault()):
-        return f"{_nuke.root().firstFrame()}-{_nuke.root().lastFrame()}"
+        return formatted_root_frame_range()
 
     return f"{int(first_frame_knob.value())}-{int(last_frame_knob.value())}"
 
 
 @_dataclasses.dataclass()
-class Node:
+class Node:  # pylint: disable=too-many-instance-attributes
     """The nuke submission node is a constructure that allows us to easily interact with the node
     inside the widget environment.
 
@@ -76,10 +82,10 @@ class Node:
     basename: str = _dataclasses.field(init=False, default="")
     type: str = _dataclasses.field(init=False, default="")
     disable: bool = _dataclasses.field(init=False, default=False)
+    channels: str = _dataclasses.field(init=False, default="")
+    headers: _typing.ClassVar[_typing.Tuple[str, str, str, str]] = ("order", "range", "channels", "basename")
 
-    headers: _typing.ClassVar[_typing.Tuple[str, str, str]] = ("order", "range", "basename")
-
-    def __post_init__(self, **kwargs):
+    def __post_init__(self) -> None:
         """Post initialization method.
 
         Args:
@@ -102,6 +108,7 @@ class Node:
         self.basename = _os.path.basename(self.node["file"].value())
         self.type = self.node["file_type"].value()
         self.disable = self.node.knob("disable").value()  # type: ignore[union-attr]
+        self.channels = self.node["channels"].value()
 
         return True
 
@@ -170,6 +177,15 @@ class Node:
         submission_nodes = sorted(submission_nodes, key=lambda x: x.order)
 
         return submission_nodes
+
+    def show(self) -> bool:
+        """Show the node in the node graph.
+
+        Returns:
+            bool: True if the node was shown, False otherwise
+        """
+        self.node.showControlPanel()
+        return True
 
     def zoom(self) -> bool:
         """Zoom to the node in the node graph.

@@ -1,27 +1,29 @@
 """The panel module contains the submission panel for Nuke.
 """
+
 import typing as _typing
+from collections import OrderedDict as _OrderedDict
+from getpass import getuser as _getuser
 
 from PySide2 import QtGui, QtWidgets
-from collections import OrderedDict as _OrderedDict
 
 from fpanel import pspecial
+from fpanel.facade import formatted_root_frame_range
 from fpanel.ptree import NodeTreeView
-
 
 NUKE_SUBMISSION_PANEL_LAYOUT: _typing.Dict[str, _typing.Any] = _OrderedDict()
 NUKE_SUBMISSION_PANEL_LAYOUT["farm_selection"] = (pspecial.SimpleQComboBox, {"items": ["race", "local"]})
 NUKE_SUBMISSION_PANEL_LAYOUT["range"] = (
     pspecial.ValLineEdit,
-    {"validator": QtGui.QRegularExpressionValidator(r"\d+-\d+|[\d ]+"), "placeholder": "e.g. 1001-1150"},
+    {"validator": QtGui.QRegularExpressionValidator(r"\d+-\d+|[\d ]+"), "placeholder": "e.g. 1001-1150", "text": formatted_root_frame_range()},  # type: ignore[call-overload]  # pylint: disable=line-too-long
 )
 NUKE_SUBMISSION_PANEL_LAYOUT["farm_batch_size"] = (
     pspecial.ValLineEdit,
-    {"validator": QtGui.QIntValidator(), "placeholder": "e.g. 3"},
+    {"validator": QtGui.QIntValidator(), "placeholder": "e.g. 3", "width": 45, "text": "2"},
 )
 NUKE_SUBMISSION_PANEL_LAYOUT["max_timeout"] = (
     pspecial.ValLineEdit,
-    {"validator": QtGui.QIntValidator(), "placeholder": "e.g. 3"},
+    {"validator": QtGui.QIntValidator(), "placeholder": "e.g. 3", "width": 45, "text": "3"},
 )
 # Add split line
 NUKE_SUBMISSION_PANEL_LAYOUT["split_line"] = (pspecial.HorizontalLine, {})
@@ -33,12 +35,22 @@ NUKE_SUBMISSION_PANEL_LAYOUT["ram"] = (
     pspecial.SimpleQComboBox,
     {"items": ["1", "2", "4", "8", "16", "32"], "default": 2},
 )
+# Frame and job submission id depencencies
+NUKE_SUBMISSION_PANEL_LAYOUT["job_depencency"] = (
+    pspecial.ValLineEdit,
+    {"placeholder": "ID-01 ID-02 ID-03"},
+)
+NUKE_SUBMISSION_PANEL_LAYOUT["frame_depencency"] = (
+    pspecial.ValLineEdit,
+    {"placeholder": "ID-01 ID-02 ID-03"},
+)
+# type: ignore[call-overload]  # pylint: disable=line-too-long
 # Add split line
 NUKE_SUBMISSION_PANEL_LAYOUT["split_line_2"] = (pspecial.HorizontalLine, {})
 NUKE_SUBMISSION_PANEL_LAYOUT["notes"] = (pspecial.ClearMultiLineEdit, {"placeholder": "Add any notes here"})
 NUKE_SUBMISSION_PANEL_LAYOUT["mail_notification"] = (
     pspecial.ValLineEdit,
-    {"placeholder": "", "validator": QtGui.QRegularExpressionValidator(r"\w+@\w+\.\w+")},
+    {"placeholder": "", "validator": QtGui.QRegularExpressionValidator(r"\w+@\w+\.\w+"), "text": f"{_getuser()}@d2.com"},  # type: ignore[call-overload]
 )
 # Add split line
 NUKE_SUBMISSION_PANEL_LAYOUT["split_line_3"] = (pspecial.HorizontalLine, {})
@@ -64,21 +76,12 @@ class Panel(QtWidgets.QDialog):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(QtWidgets.QApplication.activeWindow())
-        # Default window parameters
         self.setWindowTitle("Nuke")
-        # self.setGeometry(100, 100, 400, 300)
-        # Important attributes
         self.buttons_layout = pspecial.SubmitLayout()
         self.node_tree_view = NodeTreeView()
-        # Create the layout
         self.build_layout()
-        # Add the shortcuts
-        QtWidgets.QShortcut(QtGui.QKeySequence("alt+w"), self, self.close)
-
-        self.buttons_layout.submit.clicked.connect(self.settings)
-        self.buttons_layout.cancel.clicked.connect(self.close)
 
     def settings(self) -> dict:
         """Return the settings from the submission window.
@@ -130,8 +133,9 @@ class Panel(QtWidgets.QDialog):
         vertical_layout = QtWidgets.QVBoxLayout()
         layout.addRow(pspecial.HorizontalLine())
         vertical_layout.addLayout(layout)
-        vertical_layout.addStretch()
+        vertical_layout.addSpacing(5)
         vertical_layout.addWidget(self.node_tree_view)
+        vertical_layout.addStretch()
         vertical_layout.addLayout(self.buttons_layout)
 
         self.setLayout(vertical_layout)

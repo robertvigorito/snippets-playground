@@ -1,9 +1,6 @@
 
 import cProfile as profile
-
 import time
-
-
 
 
 def speedtest():

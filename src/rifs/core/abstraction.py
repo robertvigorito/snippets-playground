@@ -2,11 +2,10 @@
 
 import abc as _abc
 import dataclasses as _dataclasses
+import datetime as _datetime
 import os as _os
 import typing as _typing
 import uuid as _uuid
-import datetime as _datetime
-
 
 __all__ = ["AbstractRif", "unique_temporary_directory"]
 

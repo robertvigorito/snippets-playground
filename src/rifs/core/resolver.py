@@ -3,13 +3,13 @@ to the corresponding jobs.
 """
 
 import typing as _typing
-
 from collections import namedtuple as _namedtuple
-from dataclasses import dataclass as _dataclass, field as _field
+from dataclasses import dataclass as _dataclass
+from dataclasses import field as _field
 
 # Package imports
-from rifs.core import AbstractRif as _AbstractRif, DummyJob as _DummyJob
-
+from rifs.core import AbstractRif as _AbstractRif
+from rifs.core import DummyJob as _DummyJob
 
 __all__ = ["Grouping"]
 
@@ -129,7 +129,7 @@ class Resolver:
 
         return True
 
-    def resolve(self) -> "Resolver":
+    def resolve(self, ignore: bool = False) -> "Resolver":
         """Resolve the dependencies of the RIFs objects to the corresponding jobs.
 
         Returns:
@@ -153,6 +153,8 @@ class Resolver:
             # Try again once the others are added in the list
             cloned_groupings.append(grouping)
             attempts += 1
+        if ignore:
+            ordered_resolver.groupings.extend(cloned_groupings)
 
         return ordered_resolver
 

@@ -3,7 +3,6 @@
 from rifs.core.abstraction import AbstractRif as _AbstractRif
 from rifs.core.soumission import DummyJob as _DummyJob
 
-
 __all__ = ["is_abstract_rif", "is_soumission"]
 
 
