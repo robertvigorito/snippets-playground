@@ -336,11 +336,13 @@ class NodeTreeView(_QtWidgets.QTreeView):
         self._nodes = {node.full_name: node for node in nodes}
         self.model().clear()
         self.model().setHorizontalHeaderLabels([header.title() for header in _Node.headers])
-
         parent = self.model().invisibleRootItem()
-        for node in self._nodes.values():
+
+        copied_nodes = self._nodes.copy()
+        for node in copied_nodes.values():
             if not node.renderable():
                 _logger.info("Skipping %s, it didn't pass the renderable check!", node.full_name)
+                self._nodes.pop(node.full_name)
                 continue
             item = _QtGui.QStandardItem(node.full_name)
             # Test adding a warning icon

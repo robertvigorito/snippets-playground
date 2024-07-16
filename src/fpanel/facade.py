@@ -17,6 +17,7 @@
 #
 """The submission nodes module.
 """
+from calendar import c
 import dataclasses as _dataclasses
 import os as _os
 import typing as _typing
@@ -135,6 +136,16 @@ class Node:  # pylint: disable=too-many-instance-attributes
             return False
         return True
 
+    def first_last_frame(self, step=1) -> tuple[int, int, int]:
+        """Get the first and last frame of the node.
+
+        Returns:
+            tuple: The first and last frame of the node
+        """
+        first_frame, last_frame = self.range.split("-")
+        # Convert to int
+        return int(first_frame), int(last_frame), step
+
     def renderable(self) -> bool:
         """Check if the node is renderable.
 
@@ -197,3 +208,41 @@ class Node:  # pylint: disable=too-many-instance-attributes
         ypos = self.node.ypos() + self.node.screenHeight() / 2
         _nuke.zoom(2, [xpos, ypos])
         return True
+
+
+class FrameRange:
+    """The facade class for the frame range. This class is used to get the frame range of the root
+    node and the first, middle and last frame of the root node.
+    """
+
+    @staticmethod
+    def root() -> str:
+        """Get the frame range of the root node.
+
+        Returns:
+            str: The frame range of the root node
+        """
+        return formatted_root_frame_range()
+
+    @classmethod
+    def first_middle_last(cls) -> tuple[int, int, int]:
+        """Get the first, middle and last frame of the root node.
+
+        Returns:
+            tuple: The first, middle and last frame of the root node
+        """
+        root_frange = cls.root()
+        first, last = int(root_frange.split("-")[0]), int(root_frange.split("-")[1])
+        middle = int((int(first) + int(last)) // 2)
+
+        return (first, middle, last)
+    
+    @classmethod
+    def first_middle_last_string(cls):
+        """Get the first, middle and last frame of the root node as a string.
+
+        Returns:
+            str: The first, middle and last frame of the root node as a string
+        """
+        first, middle, last = cls.first_middle_last()
+        return f"{first} {middle} {last}"

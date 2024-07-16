@@ -11,10 +11,11 @@ from fpanel import pspecial
 from fpanel.facade import formatted_root_frame_range
 from fpanel.ptree import NodeTreeView
 
+
 NUKE_SUBMISSION_PANEL_LAYOUT: _typing.Dict[str, _typing.Any] = _OrderedDict()
 NUKE_SUBMISSION_PANEL_LAYOUT["farm_selection"] = (pspecial.SimpleQComboBox, {"items": ["race", "local"]})
 NUKE_SUBMISSION_PANEL_LAYOUT["range"] = (
-    pspecial.ValLineEdit,
+    pspecial.FrameRangeLineEdit,
     {"validator": QtGui.QRegularExpressionValidator(r"\d+-\d+|[\d ]+"), "placeholder": "e.g. 1001-1150", "text": formatted_root_frame_range()},  # type: ignore[call-overload]  # pylint: disable=line-too-long
 )
 NUKE_SUBMISSION_PANEL_LAYOUT["farm_batch_size"] = (
@@ -54,8 +55,7 @@ NUKE_SUBMISSION_PANEL_LAYOUT["mail_notification"] = (
 )
 # Add split line
 NUKE_SUBMISSION_PANEL_LAYOUT["split_line_3"] = (pspecial.HorizontalLine, {})
-# Add submit layout
-# NUKE_SUBMISSION_PANEL_LAYOUT["submit_layout"] = (pspecial.SubmitLayout, {})
+
 
 CHECKBOX_ACTIONS = (
     ("Farm Each View", False),
@@ -81,7 +81,19 @@ class Panel(QtWidgets.QDialog):
         self.setWindowTitle("Nuke")
         self.buttons_layout = pspecial.SubmitLayout()
         self.node_tree_view = NodeTreeView()
+
+        # Load the settings from disk and build the layout
+        self.__disk_settings = pspecial.PSettings()
         self.build_layout()
+
+    def closeEvent(self, event) -> None:
+        """Close the submission window and save the settings to disk.
+
+        Args:
+            event (QtGui.QCloseEvent): The close event.
+        """
+        self.__disk_settings.save(self.settings())
+        return super().closeEvent(event)
 
     def settings(self) -> dict:
         """Return the settings from the submission window.
@@ -94,12 +106,14 @@ class Panel(QtWidgets.QDialog):
         for key, (widget, _) in NUKE_SUBMISSION_PANEL_LAYOUT.items():
             widget_instance = self.findChild(widget, key.replace("_", "_"))
             if hasattr(widget_instance, "results"):
-                settings[key] = widget_instance.results()
+                settings[key.replace(" ", "_").lower()] = widget_instance.results()
 
         for checkbox_text, _ in CHECKBOX_ACTIONS:
             checkbox = self.findChild(QtWidgets.QCheckBox, checkbox_text.replace(" ", "_"))
             if hasattr(checkbox, "isChecked"):
                 settings[checkbox_text] = checkbox.isChecked()
+        # Save the settings to disk
+        self.__disk_settings.save(settings)
 
         return settings
 
@@ -119,6 +133,9 @@ class Panel(QtWidgets.QDialog):
             if widget is pspecial.HorizontalLine:
                 layout.addRow(widget_instance)
                 continue
+            setting_default = self.__disk_settings.get(key)
+            if hasattr(widget_instance, "set") and setting_default:
+                widget_instance.set(setting_default)
             layout.addRow(key.replace("_", " ").title(), widget_instance)
 
         for checkbox_text, checked in CHECKBOX_ACTIONS:
@@ -126,6 +143,8 @@ class Panel(QtWidgets.QDialog):
             checkbox.setStyleSheet("spacing: 2px; margin: 0px;")
             # Set the object name
             checkbox.setObjectName(checkbox_text.replace(" ", "_"))
+            # Check the disk settings for the checkbox
+            checked = self.__disk_settings.get(checkbox_text) or checked
             checkbox.setChecked(checked)
             layout.addRow("", checkbox)
 

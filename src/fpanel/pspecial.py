@@ -1,16 +1,21 @@
 # pylint: disable=c-extension-no-member,too-few-public-methods
-"""This module contains special widgets for the fpanel module.
+"""This module contains special widgets for the nuke_submission.gui module.
 
 Instead of using the standard widgets, these special widgets are used to
 enhance the appearance of the application and reduce the amount of code.
 """
+from math import ceil as _ceil
 import os as _os
+import functools as _functools
+import typing as _typing
 from typing import Optional as _Optional
 from typing import Union as _Union
+
 
 from PySide2 import QtCore as _QtCore
 from PySide2 import QtGui as _QtGui
 from PySide2 import QtWidgets as _QtWidgets
+from fpanel import facade
 
 
 class RightAlignedLabel(_QtWidgets.QLabel):
@@ -51,6 +56,53 @@ class ValLineEdit(_QtWidgets.QLineEdit):
             self.setMaximumWidth(width)
 
         self.results = self.text
+        self.set = self.setText
+
+        # Update the number if the wheel event is detected
+
+    def wheelEvent(self, event: _QtGui.QWheelEvent) -> None:
+        """Update the number if the wheel event is detected.
+
+        Args:
+            event (QWheelEvent): The wheel event.
+        """
+        if not self.text().isdigit():
+            return
+        if event.angleDelta().y() > 0:
+            self.setText(str(int(self.text()) + 1))
+        elif int(self.results()) > 1:
+            self.setText(str(int(self.text()) - 1))
+
+
+class FrameRangeLineEdit(ValLineEdit):
+    """A QLineEdit for the frame range."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+        layout = _QtWidgets.QHBoxLayout()
+        # Set the alignment to right and center
+        layout.setAlignment(_QtCore.Qt.AlignmentFlag.AlignRight | _QtCore.Qt.AlignmentFlag.AlignVCenter)  # type: ignore
+        # Offset the menu to compensate the clear icon
+        layout.setContentsMargins(0, 0, 19, 0)
+        # Create a toolbar
+        toolbar = _QtWidgets.QToolBar()
+        # Make icons flat
+        toolbar.setToolButtonStyle(_QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
+        # Set the icon size
+        toolbar.setIconSize(_QtCore.QSize(16, 16))
+        toolbar.setStyleSheet("QToolButton {border: none;} QToolButton:pressed {background: none;}}")
+
+        first_mid_last = toolbar.addAction(_QtGui.QIcon(icon_path("fml")), "Set first middle last.")
+        shotgrid = toolbar.addAction(_QtGui.QIcon(icon_path("shotgrid")), "Update frame range from shotgrid.")
+        root_range = toolbar.addAction(_QtGui.QIcon(icon_path("range")), "Update frame range from nuke root settings.")
+
+        # Connections
+        first_mid_last.triggered.connect(lambda: self.setText(facade.FrameRange.first_middle_last_string()))
+        root_range.triggered.connect(lambda: self.setText(facade.FrameRange.root()))
+
+        layout.addWidget(toolbar)
+        self.setLayout(layout)
 
 
 class SubmitLayout(_QtWidgets.QHBoxLayout):
@@ -88,6 +140,7 @@ class ClearMultiLineEdit(_QtWidgets.QPlainTextEdit):
         self.clear_button.clicked.connect(lambda: self.setPlainText(""))
 
         self.results = self.toPlainText
+        self.set = self.setPlainText
 
     def has_text(self) -> bool:
         """Check if the QPlainTextEdit has text."""
@@ -111,6 +164,7 @@ class SimpleQComboBox(_QtWidgets.QComboBox):
             self.setCurrentText(default)
 
         self.results = self.currentText
+        self.set = self.setCurrentText
 
 
 def icon_path(icon_name: str) -> str:
@@ -158,3 +212,138 @@ class TreeToolbar(_QtWidgets.QVBoxLayout):
         """
         self._toolbar.setVisible(on or not self._toolbar.isVisible())
         return self._toolbar.isVisible()
+
+
+def show_wait_cursor(func: _typing.Callable) -> _typing.Callable:
+    """A decorator that shows the wait cursor during the execution of the function.
+
+    Args:
+        func (Callable): The function to decorate.
+
+    Returns:
+        Callable: The decorated function.
+    """
+
+    @_functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        _QtWidgets.QApplication.restoreOverrideCursor()
+
+        try:
+            _QtWidgets.QApplication.setOverrideCursor(_QtGui.QCursor(_QtCore.Qt.CursorShape.WaitCursor))
+            result = func(*args, **kwargs)
+        finally:
+            _QtWidgets.QApplication.restoreOverrideCursor()
+
+        return result
+
+    return wrapper
+
+
+class FancyMessageBox(_QtWidgets.QMessageBox):
+    """A QMessageBox with a fancy icon."""
+
+    COUNTDOWN = 10
+
+    def __init__(self, ids: _typing.List[str], **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.setWindowFlags(_QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet(
+            """
+            QMessageBox {
+                border: 2px solid rgb(230, 150, 17);
+            }
+            """
+        )
+        # Restore the mouse cursor
+        _QtWidgets.QApplication.restoreOverrideCursor()
+        # Add the custom icon
+        support_icon = _QtGui.QPixmap(icon_path("support"))
+        support_icon = support_icon.scaledToWidth(100)
+        self.setIconPixmap(support_icon)
+        # Add the auto-close timer and ok button
+        self.ok_button = self.addButton(self.Ok)
+        self.ok_button.setText(f"OK ({self.COUNTDOWN})")
+        self.ok_button.clicked.connect(self.close)
+        self.timer = _QtCore.QTimer()
+        self.timer.setInterval(self.COUNTDOWN * 1000)
+        self.timer.timeout.connect(self.close)
+        self.timer.start()
+        self.update_timer = _QtCore.QTimer()
+        self.update_timer.setInterval(1000)
+        self.update_timer.timeout.connect(self.update_button_text)
+        self.update_timer.start()
+
+        # Add a custom label that has a custom linkable command.
+        self.setText("Submission was successful!")
+        self.label = _QtWidgets.QLabel()
+        self.label.setText(
+            f"The jobs <a href='#'>{' '.join(ids)}</a> was submitted successfully, click the link to open race."
+        )
+        self.label.setOpenExternalLinks(False)
+        self.label.linkActivated.connect(lambda: print("Link clicked"))
+
+        # Add the label to the layout
+        self.layout().addWidget(self.label, 1, 2, alignment=_QtCore.Qt.AlignTop)  # type: ignore
+
+    def resizeEvent(self, event: _QtGui.QResizeEvent) -> None:  # pylint: disable=unused-argument,invalid-name
+        """Resize the QMessageBox.
+
+        Args:
+            event (QResizeEvent): The resize event.
+        """
+        self.setMinimumWidth(450)
+
+    def update_button_text(self) -> None:
+        """Update the text of the OK button."""
+        remaining_time = self.timer.remainingTime() / 1000
+        remaining_time = _ceil(remaining_time)
+        self.ok_button.setText(f"OK ({remaining_time})")
+
+
+class PSettings(_QtCore.QSettings):
+    """A QSettings object that saves the settings to the QSettings object."""
+
+    IGNORE_KEYS = ("frame_depencency", "job_depencency", "range")
+
+    def __init__(self) -> None:
+
+        super().__init__("DD", "NukeSubmission")
+        # Ignore some keys that are not needed
+        self.setFallbacksEnabled(False)
+
+    def save(self, settings: dict) -> bool:
+        """Save the settings to the QSettings object.
+
+        Args:
+            settings (dict): The settings to save.
+
+        Returns:
+            bool: True if the settings were saved successfully, False otherwise.
+        """
+        for key, value in settings.items():
+            if key in self.IGNORE_KEYS:
+                continue
+            self.setValue(key, value)
+
+        # Make sure the settings are saved
+        self.sync()
+
+        return True
+
+    def get(self, key: str) -> _typing.Optional[_typing.Union[str, bool]]:
+        """Get the value of the key.
+
+        Args:
+            key (str): The key to get the value from.
+
+        Returns:
+            Optional[Union[str, bool]]: The value of the key.
+        """
+        # If the value is true or false, return a boolean
+        if key in self.IGNORE_KEYS:
+            return None
+        value = self.value(key)  # type: str, ignore[assignment]
+        if value in ["true", "false"]:
+            return value == "true"
+
+        return value

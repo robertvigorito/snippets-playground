@@ -6,8 +6,10 @@ from typing import Any
 from PySide2 import QtWidgets as _QtWidgets
 
 from fpanel.facade import Node as _Node
-from fpanel.panel import Panel as _Panel
+from fpanel.pentry import Panel as _Panel
 
+
+import nuke as _nuke
 
 class Interface:
     """The interface class connects the widgets to the backend core functionality.
@@ -60,6 +62,21 @@ class Interface:
 
         pp(submission_panel_settings)
         pp(submission_write_settings)
+
+        # Check for local submission
+        if submission_panel_settings["farm_selection"] == "local" or True:
+            nodes = []
+            franges = []
+            for node in submission_write_settings:
+                nodes.append(node.node)
+                frame_range_tuple = node.first_last_frame()
+                frame_range_tuple = (frame_range_tuple[0], frame_range_tuple[1], 1)
+                franges.append(frame_range_tuple)
+                # limits = {'maxThreads':2, 'maxCache':4096}
+                # _nuke.executeBackgroundNuke(_nuke.EXE_PATH, [node.node], frameRange=frame_ranges, views=["main"], limits=limits)
+
+            # _nuke.executeMultiple(nodes, franges)
+            
 
         return True
 
