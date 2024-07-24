@@ -1,91 +1,92 @@
 """By passing the rif objects to the transmit module, the objects are converted into executable python 
 files for farm submission.
 """
+
 import dataclasses as _dataclasses
-import os as _os
+import logging as _logging
 import typing as _typing
 
-import black as _black
-
-# Package imports
-from rifs.core import AbstractRif as _AbstractRif
-from rifs.core import constants as _constants
-from rifs.core import insert_job as _insert_job
+# Internal imports
+from rifs.core.soumission import _Job
+from rifs.core.transmission import generate_script as _generate_script
+from rifs.core import AbstractRif as _AbstractRif, insert_job as _insert_job
 from rifs.core.resolver import Resolver as _Resolver
+
+
 
 __all__ = ["Constructor"]
 
 
+_logger = _logging.getLogger("dd." + __name__)
+_logger.addHandler(_logging.NullHandler())
+
+
 @_dataclasses.dataclass(eq=True, order=True, frozen=True)
 class Constructor:
-    """Turn a duck object into a executable python file for farm submission."""
+    """Turn a rif object into a executable python file for farm submission."""
 
     operations: _typing.List["_AbstractRif"]
 
-    def submit(self, **kwargs) -> _typing.List[_typing.Any]:
-        """Emit the python code for the duck object.
+    def submit(self, ignore: bool = False) -> _typing.List[_typing.Tuple[str, str]]:
+        """Submit all the grouping jobs to the farm.
 
-        Keyword Args:
-            ignore bool: Ignore the dependency resolution.
-        
+        Args:
+            ignore (bool, optional): The resolve looks to see if the jobs are enlist in the grouping.
+                                     This is a flag to ignore the depend_on. Defaults to False.
         Returns:
-            _typing.List[_typing.Any]: The list of results from the job submission.
+            _typing.List[_typing.Tuple[str, str]]: The list of the job name and the job id.
         """
-        results = []
-        pool: _typing.List[str] = []
+        results: _typing.List[_typing.Tuple[str, str]] = []
 
-        for grouping in self.build().resolve(**kwargs):
-            print(grouping.name(), grouping.job.command)
-            # result = grouping.job.submit()
-            result = "Job submitted"
-            # Add to the pool for dependency resolution
-            pool.append(grouping.job.name)
-
-            from pprint import pprint as pp
-
-            pp(pool)
-            # print(grouping.job.depend_on)
-            for depend_on in grouping.job.depend_on:
-                if depend_on.name in pool:
-                    print(f"{grouping.name()} - Dependency resolved")
-
-            results.append(result)
+        for grouping in self.build().resolve(ignore=ignore):
+            results.append(grouping.job.submit())
 
         return results
 
     def build(self) -> "_Resolver":
-        """Turn the duck object into a executable python file for farm submission.
+        """Turn the rif objects into a executable python file for farm submission.
 
         Returns:
-            _Resolver: The list of constructed duck objects.
+            Resolver: The resolver object.
         """
         rifs_resolver = _Resolver()
 
         for operation in self.operations:
-            # Get the module name
-            operation_module_name = operation.namespace or operation.__module__
-            # Get the class name
-            operation_class_name = type(operation).__name__
-            # Get the kwargs
-            operation_kwargs = {}
-            for field in _dataclasses.fields(operation):
-                if field.init and not field.kw_only:
-                    operation_kwargs[field.name] = getattr(operation, field.name)
 
-            # Build the script from the template and save it in the temp directory
-            operation_duck_script = _constants.RIF_SCRIPT_TEMPLATE.format(
-                module=operation_module_name, class_name=operation_class_name, kwargs=operation_kwargs
+            operation_class_name = operation.__class__.__name__
+            if isinstance(operation, _Job):
+                _logger.info("Injecting job %s into the resolver.", operation_class_name)
+                rifs_resolver.inject(operation=operation, job=operation)
+                continue
+            if not issubclass(type(operation), _AbstractRif):
+                _logger.info("Skipping %s. Not a valid rif object.", operation)
+                continue
+            # Generate the script if its an abstract rif
+            temp_script_path = _generate_script(operation)
+            _logger.info(
+                "Generated script %s for %s. Will skip if its a processor rif",
+                temp_script_path or None,
+                operation_class_name,
             )
-            # Format the script with black - Make it pretty
-            operation_duck_script = _black.format_str(operation_duck_script, mode=_black.FileMode())
-
-            # Write the script to the temporary directory
-            temp_script_path = _os.path.join(operation.temporary_directory, f"rif_{operation_class_name.lower()}.py")
-            with open(temp_script_path, "w", encoding="utf-8") as open_script_file:
-                open_script_file.write(operation_duck_script)
-
             # Convert the object to job
-            rif_soumission = _insert_job(operation, temp_script_path)
-            rifs_resolver.inject(operation, rif_soumission)
+            rif_job_soumission = _insert_job(operation, temp_script_path, **operation.soumission_kwargs)
+            # Inject the job into the resolver
+            _logger.info("Injecting job %s into the resolver.", rif_job_soumission.job_name)
+            rifs_resolver.inject(operation, rif_job_soumission)
 
         return rifs_resolver
+
+
+def only_one(operation: _typing.Union[_AbstractRif, _Job]) -> _typing.Tuple[str, str]:
+    """Submit only one job to the farm.
+
+    Args:
+        operation (Union[AbstractRif, Job]): The operation to submit.
+
+    Returns:
+        Tuple[str, str]: The job name and the job id.
+    """
+    # Validate the operation
+    if not isinstance(operation, (_AbstractRif, _Job)):
+        raise TypeError(f"Only AbstractRif or Job objects are allowed. Got {type(operation)}.")
+    return Constructor([operation]).submit()[0]

@@ -1,70 +1,107 @@
+# No shebang line. This file is meant to be imported.
+#
+# Confidential and Proprietary Source Code
+#
+# This Digital Domain 3.0, Inc. ("DD3.0")  source code, including without
+# limitation any human-readable  computer programming code and associated
+# documentation (together "Source Code"),  contains valuable confidential,
+# proprietary  and trade secret information of DD3.0  and is protected by
+# the laws of the United States and other countries. DD3.0 may, from time
+# to time, authorize specific employees to use the Source Code internally
+# at DD3.0's premises  solely for  developing,  updating,  and/or trouble-
+# shooting  the Source Code.  Any other use of the Source Code, including
+# without  limitation  any disclosure,  copying or reproduction,  without
+# the prior written authorization of DD3.0 is strictly prohibited.
+#
+# Copyright (c) [2024] Digital Domain 3.0, Inc. All rights reserved.
+#
 """The backend render framework objects that are used to submit jobs."""
 
 import dataclasses as _dataclasses
 import os as _os
-import typing as _typing
 
 # Package imports
-from rifs.core import AbstractRif as _AbstractRif
+from rifs.core.abstraction import AbstractRif as _AbstractRif
+
 
 __all__ = ["insert_job"]
 
-
+# Create a mock job object
 @_dataclasses.dataclass
-class DummyJob:
-    """Dummy job object to be used for testing purposes."""
+class _Job:
+    """The job object."""
 
-    show = _os.getenv("DD_SHOW", "DEV01")
-
+    show: str = "DEV01"
     activity: str = "comprender"
-    command: _typing.List[str] = _dataclasses.field(default_factory=list)
-    cpus: int = 2
-    env: dict = _dataclasses.field(default_factory=dict)
     job_class_type: str = "NukeJob"
-    job_name: str = show
+    job_name: str = "DEV01"
+    env: dict = _dataclasses.field(default_factory=dict)
     ram: int = 8000
-    depend_on: _typing.List["DummyJob"] = _dataclasses.field(default_factory=list)
-    name: str = "dummy"
-    notes: str = ""
+    cpus: int = 2
+    command: list = _dataclasses.field(default_factory=list)
+    frame_range: str = ""
+    auto_dump: bool = False
+    honor_cores: bool = True
 
     def submit(self):
         """Submit the job."""
-        import subprocess as _subprocess  # pylint: disable=import-outside-toplevel
-
-        try:
-            process = _subprocess.Popen(self.command, env=_os.environ, stdout=_subprocess.PIPE, stderr=_subprocess.PIPE)
-        except _subprocess.CalledProcessError as e:
-            print(e)
-
-        # Print the output and stderr
-        output, error = process.communicate()
-        if process.returncode == 0:
-            print(output.decode("utf-8"))
-        else:
-            print(error.decode("utf-8"))
+        import subprocess
+        process = subprocess.Popen(self.command)
+        process.wait()
+        return process
 
 
-def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> "DummyJob":
-    """Insert a job into the database.
+def standard_job(**kwargs) -> _Job:
+    """Create a standard submission job object with the default values the suffice for Nuke.
 
-    Args:
-        job (DummyJob): The job object to insert.
-
-    Keyword Args:
-        activity: The activity name.
-        command: The command to execute.
-        cpus: The number of CPUs.
-        env: The environment variables.
-        job_class_type: The job class type.
-        job_name: The job name.
-        ram: The amount of RAM.
-        show: The show name.
+    Keyword Arguments:
+        activity (str): The activity name. Defaults to "comprender".
+        auto_dump (bool): The auto dump. Defaults to False.
+        cpus (int): The cpus. Defaults to 2.
+        env (dict): The environment variables. Defaults to {}.
+        frame_range (str): The frame range. Defaults to "".
+        honor_cores (bool): The honor cores. Defaults to True.
+        job_class_type (str): The job class type. Defaults to "NukeJob".
+        job_name (str): The job name. Defaults to "DEV01".
+        ram (int): The ram. Defaults to 8000.
+        show (str): The show name. Defaults to "DEV01".
 
     Returns:
-        DummyJob: The job object.
+        Job: The job object.
     """
-    rif_duck_job = DummyJob()
-    rif_duck_job.command = ["python", script]
+    show = _os.getenv("DD_SHOW", "DEV01")
+    sousmission_job = _Job()
+    sousmission_job.show = show
+    sousmission_job.activity = "comprender"
+    sousmission_job.job_class_type = "NukeJob"
+    sousmission_job.job_name = show
+    sousmission_job.env["outputImage"] = kwargs.get("outputImage", "")
+    # Default ram and cpu
+    sousmission_job.ram = 8000
+    sousmission_job.cpus = 2
+
+    for key, value in kwargs.items():
+        setattr(sousmission_job, key, value)
+
+    return sousmission_job
+
+
+def insert_job(operation: "_AbstractRif", script: str, **kwargs) -> "_job.Job":
+    """Wrap a rifs operation into a job object.
+
+    Args:
+        operation (AbstractRif): The operation to wrap.
+        script (str): The script to run.
+
+    Keyword Args:
+        outputImage (str): The output image.
+
+    Returns:
+        Job: The job object.
+    """
+    rif_duck_job = standard_job(**kwargs)
+    rif_duck_job.command = operation.command_override + [script]  # pylint: disable=protected-access
+    print(rif_duck_job.command)
     rif_duck_job.env["outputImage"] = kwargs.get("outputImage", "")
 
     for key, value in kwargs.items():

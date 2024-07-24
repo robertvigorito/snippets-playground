@@ -1,15 +1,36 @@
+# No shebang line. This file is meant to be imported.
+#
+# Confidential and Proprietary Source Code
+#
+# This Digital Domain 3.0, Inc. ("DD3.0")  source code, including without
+# limitation any human-readable  computer programming code and associated
+# documentation (together "Source Code"),  contains valuable confidential,
+# proprietary  and trade secret information of DD3.0  and is protected by
+# the laws of the United States and other countries. DD3.0 may, from time
+# to time, authorize specific employees to use the Source Code internally
+# at DD3.0's premises  solely for  developing,  updating,  and/or trouble-
+# shooting  the Source Code.  Any other use of the Source Code, including
+# without  limitation  any disclosure,  copying or reproduction,  without
+# the prior written authorization of DD3.0 is strictly prohibited.
+#
+# Copyright (c) [2024] Digital Domain 3.0, Inc. All rights reserved.
+#
 """The resolver module for the RIFs package allows us to map the dependencies of the RIFs objects
 to the corresponding jobs.
 """
 
 import typing as _typing
+
 from collections import namedtuple as _namedtuple
-from dataclasses import dataclass as _dataclass
-from dataclasses import field as _field
+from dataclasses import dataclass as _dataclass, field as _field
 
 # Package imports
 from rifs.core import AbstractRif as _AbstractRif
-from rifs.core import DummyJob as _DummyJob
+
+try:
+    from submission.types.jobs.job import Job as _Job
+except ImportError:
+    _Job = None
 
 __all__ = ["Grouping"]
 
@@ -18,7 +39,7 @@ class Grouping(_namedtuple("Grouping", ["operation", "job"])):
     """The grouping class takes an operation and a job and groups them together."""
 
     operator: "_AbstractRif"
-    job: "_DummyJob"
+    job: "_Job"
 
     def __hash__(self) -> int:
         """Hash the grouping object.
@@ -29,7 +50,7 @@ class Grouping(_namedtuple("Grouping", ["operation", "job"])):
         return hash(str(self.operation) + str(self.job))
 
     def has_depend_on(self) -> bool:
-        """Check if the operation has depend_on.
+        """Check if the operation has depend_on attributes.
 
         Returns:
             bool: True if the operation has depend_on.
@@ -42,7 +63,7 @@ class Grouping(_namedtuple("Grouping", ["operation", "job"])):
         Returns:
             str: The name of the grouping.
         """
-        return f"{self.operation.name} - {self.job.name}"
+        return f"{self.operation.name} - {self.job.job_name}"
 
 
 @_dataclass(eq=True, order=True)
@@ -75,6 +96,35 @@ class Resolver:
 
         return any([in_operations, in_jobs, in_grouping])
 
+    def find(self, operation: "_AbstractRif", job: _typing.Optional["_Job"] = None) -> _typing.Optional["Grouping"]:
+        """Find the grouping from either the operation or the job.
+
+        Args:
+            operation (AbstractRif): The operation object.
+            job (DummyJob): The job object.
+
+        Returns:
+            Grouping: The grouping object.
+        """
+        for grouping in self.groupings:
+            if grouping.operation == operation or grouping.job == job:
+                return grouping
+
+        return None
+
+    def inject(self, operation: "_AbstractRif", job: "_Job") -> bool:
+        """Add a job to the resolver.
+
+        Args:
+            operation (AbstractRif): The operation object.
+            job (DummyJob): The job object.
+
+        Returns:
+            bool: True if the job was added to the resolver.
+        """
+        self.groupings.append(Grouping(operation=operation, job=job))
+        return True
+
     def only_jobs(self) -> list:
         """Return only the jobs from the resolver.
 
@@ -91,23 +141,34 @@ class Resolver:
         """
         return [grouping.operation for grouping in self.groupings]
 
-    def find(
-        self, operation: "_AbstractRif", job: _typing.Optional["_DummyJob"] = None
-    ) -> _typing.Optional["Grouping"]:
-        """Find the grouping from either the operation or the job.
-
-        Args:
-            operation (AbstractRif): The operation object.
-            job (DummyJob): The job object.
+    def resolve(self, ignore: bool = False) -> "Resolver":
+        """Resolve the dependencies of the RIFs objects to the corresponding jobs.
 
         Returns:
-            Grouping: The grouping object.
+            Resolver: The resolved dependencies of the RIFs objects to the corresponding jobs.
         """
-        for grouping in self.groupings:
-            if grouping.operation == operation or grouping.job == job:
-                return grouping
+        attempts = 0  # Safety net for the while loop
+        ordered_resolver = Resolver()
+        cloned_groupings = self.groupings.copy()
 
-        return None
+        while cloned_groupings and attempts < 10:
+            grouping = cloned_groupings.pop(0)
+            if not grouping.has_depend_on():
+                ordered_resolver.groupings.append(grouping)
+                continue
+            if grouping.operation.depend_on in ordered_resolver:
+                self.swap_depend_on(grouping)
+                ordered_resolver.groupings.append(grouping)
+                continue
+            cloned_groupings.append(grouping)
+            attempts += 1
+        # If the rif depends are not include in the grouping it will ignore
+        # and not append the grouping. We can ignore that operation and force
+        # inject the groupings
+        if ignore:
+            ordered_resolver.groupings.extend(cloned_groupings)
+
+        return ordered_resolver
 
     def swap_depend_on(self, grouping: "Grouping") -> bool:
         """Swap the depend_on from the operation to the job.
@@ -127,46 +188,4 @@ class Resolver:
                 new_depend_on.append(depend_on_grouping.job)
         grouping.job.depend_on = new_depend_on
 
-        return True
-
-    def resolve(self, ignore: bool = False) -> "Resolver":
-        """Resolve the dependencies of the RIFs objects to the corresponding jobs.
-
-        Returns:
-            Resolver: The resolved dependencies of the RIFs objects to the corresponding jobs.
-        """
-        # We only want to work on grouping that have depend_on
-        attempts = 0  # Safety net for the while loop
-        ordered_resolver = Resolver()
-        cloned_groupings = self.groupings.copy()
-
-        while cloned_groupings and attempts < 10:
-            grouping = cloned_groupings.pop(0)
-            if not grouping.has_depend_on():
-                ordered_resolver.groupings.append(grouping)
-                continue
-            if grouping.operation.depend_on in ordered_resolver:
-                # Need to update the job depend_on to the grouping job and not the operation job
-                self.swap_depend_on(grouping)
-                ordered_resolver.groupings.append(grouping)
-                continue
-            # Try again once the others are added in the list
-            cloned_groupings.append(grouping)
-            attempts += 1
-        if ignore:
-            ordered_resolver.groupings.extend(cloned_groupings)
-
-        return ordered_resolver
-
-    def inject(self, operation: "_AbstractRif", job: "_DummyJob") -> bool:
-        """Add a job to the resolver.
-
-        Args:
-            operation (AbstractRif): The operation object.
-            job (DummyJob): The job object.
-
-        Returns:
-            bool: True if the job was added to the resolver.
-        """
-        self.groupings.append(Grouping(operation=operation, job=job))
         return True
