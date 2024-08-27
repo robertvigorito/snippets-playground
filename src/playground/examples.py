@@ -1,46 +1,34 @@
-import sys
+my_dict = {
+    "context": ["plate/sv4ks100/exr", "plate/fh/exr", "plate/wh/exr", "compplate/wh/exr"],
+    "category": ["bg", "pl", "el", "cp", ""],
+    "number": ["01", ""],
+    "descriptor": ["dn_rt", "", "dn", "rt", "dn_pm", "pm", "flat", "flop"],
+}
 
-from PySide6 import QtCore, QtGui, QtWidgets
+keys = list(my_dict.keys())
 
 
-class TreeViewExample(QtWidgets.QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("TreeView Example")
-        self.setGeometry(100, 100, 400, 300)
+for item2 in my_dict[keys[1]]:
+    for item3 in my_dict[keys[2]]:
+        for item4 in my_dict[keys[3]]:
+            pass
+            # print(f"{item2}{item3}_{item4}")
 
-        self.setup_tree_view()
-        self.create_button()
 
-    def setup_tree_view(self):
-        self.tree_view = QtWidgets.QTreeView(self)
-        self.tree_view.setGeometry(QtCore.QRect(10, 40, 380, 240))
+keys = list(my_dict.keys())
 
-        # Create a QStandardItemModel to hold the data for the tree view
-        model = QtGui.QStandardItemModel()
-        self.tree_view.setModel(model)
 
-        # Add some items to the model
-        root_item = model.invisibleRootItem()
-        self.add_items(root_item, "Root Item", ["Item 1", "Item 2", "Item 3"])
+def walk(key_idx=1, current_str=""):
+    if key_idx == len(keys):
+        yield current_str
+        return
+    for item in my_dict[keys[key_idx]]:
+        if key_idx == 3 and current_str and item:
+            item = f"_{item}"
+        new_str = current_str + item
+        yield from walk(key_idx + 1, new_str)
 
-    def add_items(self, parent_item, text, children):
-        parent_item.appendRow(QtGui.QStandardItem(text))
-        for child_text in children:
-            parent_item.appendRow(QtGui.QStandardItem(child_text))
 
-    def create_button(self):
-        self.button = QtWidgets.QPushButton("Toggle Collapse", self)
-        self.button.setGeometry(QtCore.QRect(10, 10, 150, 25))
-        self.button.clicked.connect(self.toggle_collapse)
-
-    def toggle_collapse(self):
-        root_index = self.tree_view.rootIndex()
-        is_expanded = not self.tree_view.isExpanded(root_index)
-        self.tree_view.setExpanded(root_index, is_expanded)
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    window = TreeViewExample()
-    window.show()
-    sys.exit(app.exec_())
+# Start the recursion with the second key ('category') since 'context' is not used in the combinations.
+for path in walk():
+    print(path)

@@ -75,6 +75,8 @@ class Panel(QtWidgets.QDialog):
     and other options.
 
     """
+    # Create a is local property
+    is_local = property(lambda self: self.settings()["farm_selection"] == "local")
 
     def __init__(self) -> None:
         super().__init__(QtWidgets.QApplication.activeWindow())
@@ -144,7 +146,7 @@ class Panel(QtWidgets.QDialog):
             # Set the object name
             checkbox.setObjectName(checkbox_text.replace(" ", "_"))
             # Check the disk settings for the checkbox
-            checked = self.__disk_settings.get(checkbox_text) or checked
+            checked = self.__disk_settings.get(checkbox_text) or checked  # type: ignore[union-attr]
             checkbox.setChecked(checked)
             layout.addRow("", checkbox)
 

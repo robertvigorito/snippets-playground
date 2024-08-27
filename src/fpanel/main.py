@@ -19,6 +19,7 @@ class Interface:
         nodes (list): A list of nodes from the Nuke script.
         nuke_submission (Panel): The submission panel for Nuke.
     """
+    is_local = property(lambda self: self.nuke_submission.settings()["farm_selection"] == "local")
 
     def __init__(self, selected=False) -> None:
         self.nodes = _Node.many(selected=selected)
@@ -58,6 +59,9 @@ class Interface:
         submission_panel_settings = self.nuke_submission.settings()
         submission_write_settings = self.nuke_submission.node_tree_view.active_nodes
 
+        print(self.is_local)
+
+        return False
         from pprint import pprint as pp
 
         pp(submission_panel_settings)
@@ -83,8 +87,8 @@ class Interface:
 
 if __name__ == "__main__":
 
-    from PySide2 import QtWidgets as _QtWidgets
-
+    # from PySide2 import QtWidgets as _QtWidgets
+    import nuke
     app = _QtWidgets.QApplication([])
     window = Interface(selected=True)
     window()

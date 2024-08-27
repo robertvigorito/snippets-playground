@@ -246,7 +246,7 @@ class FancyMessageBox(_QtWidgets.QMessageBox):
 
     def __init__(self, ids: _typing.List[str], **kwargs) -> None:
         super().__init__(**kwargs)
-        self.setWindowFlags(_QtCore.Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(_QtCore.Qt.WindowType.FramelessWindowHint)  # type: ignore[arg-type]
         self.setStyleSheet(
             """
             QMessageBox {
@@ -342,7 +342,7 @@ class PSettings(_QtCore.QSettings):
         # If the value is true or false, return a boolean
         if key in self.IGNORE_KEYS:
             return None
-        value = self.value(key)  # type: str, ignore[assignment]
+        value: str = self.value(key)  # type: ignore
         if value in ["true", "false"]:
             return value == "true"
 
