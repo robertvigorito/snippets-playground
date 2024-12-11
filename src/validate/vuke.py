@@ -1,9 +1,11 @@
 """The module contain generic nuke validation that preset the user with information
 valid information that can assist with optimizing the render process.
 """
+
 import abc as _abc
 import dataclasses as _dataclasses
 import os as _os
+from pathlib import Path
 import typing as _typing
 from enum import Enum as _Enum
 
@@ -18,7 +20,7 @@ class Status(_Enum):
 
 
 @_dataclasses.dataclass(eq=True, order=True)
-class Standard(_abc.ABC):
+class _Standard(_abc.ABC):
     """The standard validation object.
 
     Attributes:
@@ -27,14 +29,20 @@ class Standard(_abc.ABC):
         history: The history of the validation.
         prompt: The prompt message.
     """
-
     fixable: bool = _dataclasses.field(default=False)
     history: list[str] = _dataclasses.field(default_factory=list)
     prompt: str = _dataclasses.field(default="")
     status: Status = _dataclasses.field(default=Status.UNKNOWN)
 
-    def log(self, message: str):
+    name = "Standard Validation"
+
+    def __post_init__(self):
+        self.validate()
+
+    def log(self, message: str, prompt:bool = False):
         """Log the message."""
+        if prompt:
+            self.prompt += message
         self.history.append(message)
         return self
 
@@ -46,9 +54,9 @@ class Standard(_abc.ABC):
         """Check the validation."""
 
 
-class FrameRangeValidation(Standard):
+class FrameRangeValidation(_Standard):
     """Check if the frame range is correct and matches the frame range in shotgrid."""
-
+    name = "Frame Range Validation"  
     fixable = True
 
     def validate(self):
@@ -62,13 +70,19 @@ class FrameRangeValidation(Standard):
         return self
 
 
-@_dataclasses.dataclass
-class FileExistsValidation(Standard):
+@_dataclasses.dataclass(eq=True, order=True)
+class FileExistsValidation(_Standard):
     """Check if the file existing on disk and the user has the correct permissions."""
 
     # path: _typing.Union[str] = _dataclasses.field(default_factory=Path)
     # fixable = False
-    path: _typing.Union[str] = ""
+    path: _typing.Union[str, Path] = _dataclasses.field(default="")
+
+    name = "File Exists Validation"
+
+    def __post_init__(self):
+        self.path = Path(self.path)
+        super().__post_init__()
 
     def validate(self):
         """This method will validate the file exists and the user has the correct permissions."""
@@ -86,28 +100,54 @@ class FileExistsValidation(Standard):
         return self
 
 
-class LargeBoundaryBoxValidation(Standard):
+class LargeBoundaryBoxValidation(_Standard):
     """Check if the boundary box in the script tree is too large."""
 
     fixable = True
-
+    name = "Large Boundary Box Validation"
     def validate(self):
         """Take the node format and the node boundary box and check review the threshold.
 
         If the threshold is above the limit, set the status to warning.
         """
+        self.prompt = "Boundary box is too large. The recommended action is to crop the boundary box."
+        self.status = Status.WARNING
+        return self
 
 
-class NodeErrorInTreeValidation(Standard):
+# @_dataclasses.dataclass(eq=True, order=True)
+class NodeErrorInTreeValidation(_Standard):
     """Review the node tree that is connected to the write node and inform the user if there is a
     node with an error.
     """
 
     fixable = False
+    name = "Error Nodes Validation"
 
     def validate(self):
         """Check the node tree for any errors."""
-        self.prompt = "Checking the node tree for errors."
+        for fake_node in ["Read", "Write", "Viewer"]:
+            self.log(f"{fake_node} node has an error.\n", prompt=True)
+        self.status = Status.ERROR
+        self.prompt += "Click the node to view the error in tree.\n" 
+        return self
+    
+
+class TestVal(_Standard):
+    """Review the node tree that is connected to the write node and inform the user if there is a
+    node with an error.
+    """
+
+    fixable = False
+    name = "Test for demo Validation"
+
+    def validate(self):
+        """Check the node tree for any errors."""
+        self.prompt +=  "I found an error"
+
+        self.status = Status.ERROR
+
+
         return self
 
 
@@ -115,56 +155,33 @@ def extract_required(item, validator):
     """Strip the required items from the item and return the required items."""
     required_kwargs = {}
 
-    for field in set(vars(validator)) - set(vars(Standard)):
+    for field in set(vars(validator)) - set(vars(_Standard)):
+        # If ignore private fields and dunder methods
+        if field.startswith("_"):
+            continue
         required_kwargs[field] = getattr(item, field, None) or item.get(field, None)
 
     return required_kwargs
 
 
-def process(**kwargs: dict[str, _typing.Any]):
-    """Process the kwargs and return a list of standard validation objects.
+def process(**kwargs: dict[str, _typing.Any]) -> _typing.Generator[_Standard, None, None]:
+    """Process the kwargs and return a list of _standard validation objects.
 
     Args:
         kwargs: The keyword arguments.
 
     Returns:
-        list[Standard]: The list of standard validation objects.
+        list[_Standard]: The list of _standard validation objects.
     """
     validators = [
-        # FrameRangeValidation,
+        FrameRangeValidation,
         FileExistsValidation,
-        # LargeBoundaryBoxValidation,
-        # NodeErrorInTreeValidation,
+        LargeBoundaryBoxValidation,
+        NodeErrorInTreeValidation,
+        TestVal
     ]
     for validator in validators:
         validator_kwargs = extract_required(kwargs, type(validator))
-        print(validator_kwargs)
-        validator_instance = validator(**validator_kwargs)
+        clean_kwargs = {k: v for k, v in validator_kwargs.items() if v in vars(validator)}
+        validator_instance = validator(**clean_kwargs)
         yield validator_instance
-
-
-# def process_nodes(nodes: list["_facade.Node"]):
-#     """Process the nodes and return a list of standard validation objects.
-
-#     Args:
-#         nodes: The list of facade nodes.
-
-#     Returns:
-#         list[Standard]: The list of standard validation objects.
-#     """
-#     validators = [
-#         FrameRangeValidation,
-#         FileExistsValidation,
-#         LargeBoundaryBoxValidation,
-#         NodeErrorInTreeValidation,
-#     ]
-#     for node in nodes:
-#         for validator in validators:
-#             validator_kwargs = strip_required(node, validator)
-#             validator_instance = validator(**validator_kwargs)
-#             validator_instance.validate()
-#             print(validator_instance.prompt)
-#             print(validator_instance.status)
-
-
-# Find the kwargs that are required for the validation

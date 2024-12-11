@@ -15,7 +15,6 @@ from typing import Union as _Union
 from PySide2 import QtCore as _QtCore
 from PySide2 import QtGui as _QtGui
 from PySide2 import QtWidgets as _QtWidgets
-from fpanel import facade
 
 
 class RightAlignedLabel(_QtWidgets.QLabel):
@@ -26,13 +25,28 @@ class RightAlignedLabel(_QtWidgets.QLabel):
         self.setAlignment(_QtCore.Qt.AlignmentFlag.AlignRight | _QtCore.Qt.AlignmentFlag.AlignVCenter)  # type: ignore
 
 
-class HorizontalLine(_QtWidgets.QFrame):
-    """A horizontal line."""
+class HorizontalLine(_QtWidgets.QWidget):
+    """A horizontal line with adjustable thickness and text in the middle."""
 
-    def __init__(self):
+    def __init__(self, text: str = "", thickness: float = 1, color="black") -> None:
         super().__init__()
-        self.setFrameShape(_QtWidgets.QFrame.Shape.HLine)
-        self.setFrameShadow(_QtWidgets.QFrame.Shadow.Sunken)
+
+        self.setLayout(_QtWidgets.QHBoxLayout())
+        # self.layout().setContentsMargins(0, 0, 0, 0)
+        text_label = _QtWidgets.QLabel(text)
+        text_label.setAlignment(_QtCore.Qt.AlignmentFlag.AlignLeft)  # type: ignore
+
+        # Set text to use the minimum width
+        text_label.setFixedWidth(text_label.sizeHint().width())
+
+        line = _QtWidgets.QFrame()
+        line.setFrameShape(_QtWidgets.QFrame.Shape.HLine)
+        line.setFrameShadow(_QtWidgets.QFrame.Plain)
+        line.setLineWidth(thickness)  # type: ignore
+        line.setStyleSheet(f"color: {color}")
+        if text:
+            self.layout().addWidget(text_label)
+        self.layout().addWidget(line)
 
 
 class ValLineEdit(_QtWidgets.QLineEdit):
@@ -79,6 +93,7 @@ class FrameRangeLineEdit(ValLineEdit):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        from fpanel import facade  # pylint: disable=import-outside-toplevel
 
         layout = _QtWidgets.QHBoxLayout()
         # Set the alignment to right and center
@@ -347,3 +362,17 @@ class PSettings(_QtCore.QSettings):
             return value == "true"
 
         return value
+
+
+class IconLabel(_QtWidgets.QWidget):
+    """A QLabel with an icon."""
+
+    def __init__(self, icon_name: str, text: str) -> None:
+        super().__init__()
+        layout = _QtWidgets.QHBoxLayout()
+        layout.setAlignment(_QtCore.Qt.AlignmentFlag.AlignLeft | _QtCore.Qt.AlignmentFlag.AlignVCenter)  # type: ignore
+        icon = _QtWidgets.QLabel()
+        icon.setPixmap(_QtGui.QPixmap(icon_path(icon_name)))
+        layout.addWidget(_QtWidgets.QLabel(text))
+        layout.addWidget(icon)
+        self.setLayout(layout)
