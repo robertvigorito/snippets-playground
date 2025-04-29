@@ -58,7 +58,3 @@ def keep_type() -> Test:
 
     return test_item
 
-
-if __name__ == "__main__":
-    my_test = keep_type()
-    print(my_test)
