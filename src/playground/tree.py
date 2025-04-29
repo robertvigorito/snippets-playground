@@ -8,7 +8,9 @@ import nuke as _nuke
 GenReturn = _Generator[_nuke.Node, _nuke.Node, None]
 
 
-def all_nodes(start_node: _nuke.Node, expressions: bool = False, history: list[_nuke.Node] | None = None) -> GenReturn:
+def all_nodes(
+    start_node: _nuke.Node, expressions: bool = False, history: "list[_nuke.Node] | None" = None
+) -> GenReturn:
     """Get all nodes in the tree starting from the given node.
 
     Example:
@@ -140,3 +142,15 @@ def tcl_top_node(node: _nuke.Node) -> _nuke.Node:
         nuke.Node: The top node in the tree.
     """
     return _nuke.toNode(_nuke.tcl("topnode", node.name()))
+
+
+
+def all_nodes_recursive(node: _nuke.Node, history=None):
+    history = history or []
+    for tree_node in all_nodes(node, history=history):
+        yield tree_node
+        if not hasattr(tree_node, "nodes"):
+            history.append(tree_node)
+            continue
+        for inside_node in tree_node.nodes():
+            yield from all_nodes_recursive(inside_node, history=history)
